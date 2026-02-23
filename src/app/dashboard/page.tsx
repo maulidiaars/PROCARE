@@ -336,16 +336,26 @@ async function saveUpdate() {
     // Refresh data
     await fetchData();
 
-  } catch (error) {
+    } catch (error) {
     console.error('Update error:', error);
+    
+    let errorMessage = 'Terjadi kesalahan';
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String(error.message);
+    }
+    
     Swal.fire({
-      icon: 'error',
-      title: '❌ Gagal Update',
-      text: error.message || 'Terjadi kesalahan',
-      background: '#1a1a1a',
-      color: 'white'
+        icon: 'error',
+        title: '❌ Gagal Update',
+        text: errorMessage,
+        background: '#1a1a1a',
+        color: 'white'
     });
-  }
+    }
 }
 
   // DELETE FUNCTION
