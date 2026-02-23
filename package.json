@@ -9,14 +9,22 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@planetscale/database": "^1.19.0",
+    "@popperjs/core": "^2.11.8",
     "@supabase/supabase-js": "^2.97.0",
+    "@types/jquery": "^3.5.33",
+    "bootstrap": "^5.3.8",
+    "datatables.net": "^2.3.7",
+    "datatables.net-bs5": "^2.3.7",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sweetalert2": "^11.26.20",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
