@@ -51,7 +51,8 @@ export default function Home() {
       }, 1500);
 
     } catch (error) {
-      setMessage({ type: 'error', text: `❌ Gagal: ${error.message}` });
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan';
+      setMessage({ type: 'error', text: `❌ Gagal: ${errorMessage}` });
     } finally {
       setIsSubmitting(false);
     }
