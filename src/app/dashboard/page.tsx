@@ -406,63 +406,62 @@ async function saveUpdate() {
     }
   }
 
-  // EXPORT FUNCTIONS
-  function downloadExcel() {
-    const wb = XLSX.utils.book_new();
-    
-    const title = `PROCARE - MATERIAL CONTROL`;
-    const dateGenerated = `Generated: ${new Date().toLocaleString('id-ID')}`;
-    
-    const wsData = [
-      [title],
-      [dateGenerated],
-      [],
-      ['No', 'DENSO PN', 'Part Name', 'L/I', 'Supplier', 'Problem', 
-       'Timing', 'Action', 'Due Date', 'PIC', 'Note/Remark', 'Status']
-    ];
-    
-    filteredProblems.forEach((item, index) => {
-      wsData.push([
-        index + 1,
-        item.denso_pn,
-        item.part_name || '-',
-        item.local_import,
-        item.supplier_name || '-',
-        item.problem,
-        formatDateTime(item.timing_date_time),
-        item.action || '-',
-        formatDate(item.due_date_max),
-        item.pic || '-',
-        item.note_remark || '-',
-        item.status || 'Open'
-      ]);
-    });
-    
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
-    ws['!cols'] = [
-      { wch: 5 }, { wch: 15 }, { wch: 20 }, { wch: 8 }, { wch: 30 },
-      { wch: 35 }, { wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 },
-      { wch: 30 }, { wch: 12 }
-    ];
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'PROCARE Data');
-    
-    const fileName = `PROCARE_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.xlsx`;
-    
-    XLSX.writeFile(wb, fileName);
-    
-    Swal.fire({
-      icon: 'success',
-      title: '✅ Excel Berhasil',
-      text: `File: ${fileName}`,
-      timer: 2000,
-      showConfirmButton: false,
-      background: '#1a1a1a',
-      color: 'white'
-    });
-  }
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+  
+  const title = `PROCARE - MATERIAL CONTROL`;
+  const dateGenerated = `Generated: ${new Date().toLocaleString('id-ID')}`;
+  
+  const wsData = [
+    [title],
+    [dateGenerated],
+    [],
+    ['No', 'DENSO PN', 'Part Name', 'L/I', 'Supplier', 'Problem', 
+     'Timing', 'Action', 'Due Date', 'PIC', 'Note/Remark', 'Status']
+  ];
+  
+  filteredProblems.forEach((item, index) => {
+    wsData.push([
+      String(index + 1),
+      String(item.denso_pn),
+      String(item.part_name || '-'),
+      String(item.local_import),
+      String(item.supplier_name || '-'),
+      String(item.problem),
+      String(formatDateTime(item.timing_date_time)),
+      String(item.action || '-'),
+      String(formatDate(item.due_date_max)),
+      String(item.pic || '-'),
+      String(item.note_remark || '-'),
+      String(item.status || 'Open')
+    ]);
+  });
+  
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 15 }, { wch: 20 }, { wch: 8 }, { wch: 30 },
+    { wch: 35 }, { wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 },
+    { wch: 30 }, { wch: 12 }
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'PROCARE Data');
+  
+  const fileName = `PROCARE_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.xlsx`;
+  
+  XLSX.writeFile(wb, fileName);
+  
+  Swal.fire({
+    icon: 'success',
+    title: '✅ Excel Berhasil',
+    text: `File: ${fileName}`,
+    timer: 2000,
+    showConfirmButton: false,
+    background: '#1a1a1a',
+    color: 'white'
+  });
+}
 
   function downloadPDF() {
     const doc = new jsPDF('landscape');
