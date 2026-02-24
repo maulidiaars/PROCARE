@@ -545,7 +545,7 @@ export default function Dashboard() {
         [totalData],
         [],
         ['NO', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER NAME', 'PROBLEM', 
-         'TIMING DATE', 'TIMING TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE/REMARK', 'STATUS']
+         'Issued Timing', 'TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE/REMARK', 'STATUS']
       ];
       
       filteredProblems.forEach((item, index) => {
@@ -674,7 +674,7 @@ export default function Dashboard() {
         'L/I',
         'Supplier',
         'Problem',
-        'Timing Date',
+        'Issued Timing',
         'Time',
         'Action',
         'Due Date',
