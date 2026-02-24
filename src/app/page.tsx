@@ -632,37 +632,7 @@ export default function Home() {
           <i className="fas fa-heart me-1" style={{ color: '#8b3a3a' }}></i>
           BNF Material Control - Problem Resolution System
         </p>
-      </div>
-
-      {/* FLOATING DASHBOARD BUTTON */}
-      <div style={{ 
-        position: 'fixed', 
-        bottom: '20px', 
-        right: '20px', 
-        zIndex: 9999 
-      }}>
-        <Link 
-          href="/dashboard" 
-          style={{ 
-            width: '56px', 
-            height: '56px', 
-            background: '#8b3a3a',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '22px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            textDecoration: 'none',
-            transition: 'all 0.2s'
-          }}
-          title="Ke Dashboard"
-        >
-          <i className="fas fa-chart-bar"></i>
-        </Link>
-      </div>
+      </div>git
     </main>
   );
 }
