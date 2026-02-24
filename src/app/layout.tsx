@@ -8,8 +8,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'PROCARE - Material Control',
-  description: 'Problem Control & Resolution System',
+  title: 'BNF - Material Control',
+  description: 'Problem Control & follow Up System',
 }
 
 export default function RootLayout({

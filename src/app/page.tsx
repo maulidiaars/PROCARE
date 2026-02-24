@@ -1,16 +1,29 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import Swal from 'sweetalert2';
 
 export default function Home() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // State untuk real-time date & time
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
+
+  // CEK LOGIN
+  useEffect(() => {
+    const userData = localStorage.getItem('currentUser');
+    if (!userData) {
+      router.push('/login');
+      return;
+    }
+    setCurrentUser(JSON.parse(userData));
+  }, [router]);
 
   // Update real-time date & time setiap detik
   useEffect(() => {
@@ -40,6 +53,24 @@ export default function Home() {
     } catch (error) {
       (e.target as HTMLInputElement).focus();
     }
+  };
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Yakin logout?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#8b3a3a',
+      cancelButtonColor: '#2a2a2a',
+      confirmButtonText: 'Logout',
+      background: '#1a1a1a',
+      color: 'white'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        localStorage.removeItem('currentUser');
+        router.push('/login');
+      }
+    });
   };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -101,7 +132,7 @@ export default function Home() {
       });
 
       if (result.isConfirmed) {
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
       } else {
         (e.target as HTMLFormElement).reset();
         const dateInput = document.querySelector('input[name="timingDate"]') as HTMLInputElement;
@@ -126,6 +157,15 @@ export default function Home() {
     }
   }
 
+  // Tampilkan loading kalau belum login
+  if (!currentUser) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner-border text-danger"></div>
+      </div>
+    );
+  }
+
   return (
     <main style={{ 
       minHeight: '100vh',
@@ -137,7 +177,7 @@ export default function Home() {
         margin: '0 auto'
       }}>
         
-        {/* HEADER - JUDUL DIUBAH */}
+        {/* HEADER - DENGAN USER INFO */}
         <div style={{ 
           background: 'linear-gradient(135deg, #1a0f0f 0%, #2c0b0b 100%)',
           padding: '24px 20px',
@@ -145,48 +185,92 @@ export default function Home() {
           marginBottom: '20px',
           border: '1px solid rgba(139, 58, 58, 0.3)'
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              display: 'inline-block',
-              padding: '8px 16px',
-              background: 'rgba(0,0,0,0.3)',
-              borderRadius: '30px',
-              marginBottom: '12px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-              <i className="fas fa-heartbeat" style={{ color: '#c44a4a', marginRight: '8px' }}></i>
-              <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>FORM FOLLOW UP</span>
+          <div style={{ 
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div>
+              <div style={{
+                display: 'inline-block',
+                padding: '8px 16px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '30px',
+                marginBottom: '12px',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <i className="fas fa-heartbeat" style={{ color: '#c44a4a', marginRight: '8px' }}></i>
+                <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>FORM FOLLOW UP</span>
+              </div>
+              
+              <h1 style={{ 
+                fontSize: 'clamp(28px, 6vw, 40px)',
+                fontWeight: 700,
+                color: 'white',
+                margin: '0 0 8px 0',
+                letterSpacing: '1px'
+              }}>
+                BNF MATERIAL CONTROL
+              </h1>
+              
+              <p style={{ 
+                color: 'rgba(255,255,255,0.7)',
+                fontSize: '14px',
+                margin: 0
+              }}>
+                Submit this form to report and follow up on material issues.
+              </p>
+              <p style={{ 
+                color: '#8b3a3a',
+                fontSize: '12px',
+                margin: '8px 0 0 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <i className="fas fa-clock"></i>
+                Real-time: {currentDate} {currentTime}
+              </p>
             </div>
             
-            <h1 style={{ 
-              fontSize: 'clamp(28px, 6vw, 40px)',
-              fontWeight: 700,
-              color: 'white',
-              margin: '0 0 8px 0',
-              letterSpacing: '1px'
-            }}>
-              BNF MATERIAL CONTROL
-            </h1>
-            
-            <p style={{ 
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: '14px',
-              margin: 0
-            }}>
-              Submit this form to report and follow up on material issues.
-            </p>
-            <p style={{ 
-              color: '#8b3a3a',
-              fontSize: '12px',
-              margin: '8px 0 0 0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}>
-              <i className="fas fa-clock"></i>
-              Real-time: {currentDate} {currentTime}
-            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Link href="/dashboard">
+                <button style={{
+                  background: '#8b3a3a',
+                  border: 'none',
+                  color: 'white',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fas fa-chart-bar"></i>
+                  Dashboard
+                </button>
+              </Link>
+              
+              <button
+                onClick={handleLogout}
+                style={{
+                  background: '#2a2a2a',
+                  border: '1px solid #404040',
+                  color: 'white',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <i className="fas fa-sign-out-alt"></i>
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
@@ -538,7 +622,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* FOOTER - DIUBAH */}
+        {/* FOOTER */}
         <p style={{ 
           textAlign: 'center', 
           color: '#666', 
