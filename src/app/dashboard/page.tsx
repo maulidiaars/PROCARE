@@ -652,8 +652,8 @@ function downloadPDF() {
       format: 'a4'
     });
     
-    // Warna corporate: Maroon #8b3a3a
-    const maroon = [139, 58, 58];
+    // Warna corporate: Maroon #8b3a3a - PASTIKAN TIPENYA BENAR
+    const maroon: [number, number, number] = [139, 58, 58]; // INI YANG DIPERBAIKI
     
     // HEADER PERUSAHAAN - lebih kecil
     doc.setFontSize(14);
@@ -722,8 +722,8 @@ function downloadPDF() {
       body: tableRows,
       startY: 38,
       styles: { 
-        fontSize: 7, // LEBIH KECIL (dari 8 jadi 7)
-        cellPadding: 2, // LEBIH KECIL (dari 3 jadi 2)
+        fontSize: 7,
+        cellPadding: 2,
         lineColor: [200, 200, 200],
         lineWidth: 0.1,
         textColor: [50, 50, 50],
@@ -731,9 +731,9 @@ function downloadPDF() {
         cellWidth: 'wrap'
       },
       headStyles: { 
-        fillColor: maroon, 
+        fillColor: maroon, // SEKARANG UDAH AMAN KARENA TIPENYA BENAR
         textColor: 255,
-        fontSize: 8, // LEBIH KECIL (dari 9 jadi 8)
+        fontSize: 8,
         fontStyle: 'bold',
         halign: 'center',
         valign: 'middle'
@@ -745,18 +745,18 @@ function downloadPDF() {
         fillColor: [245, 245, 245] 
       },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center' }, // No - lebih kecil
-        1: { cellWidth: 18 }, // DENSO PN - lebih kecil
-        2: { cellWidth: 20 }, // Part Name - lebih kecil
-        3: { cellWidth: 8, halign: 'center' }, // L/I - lebih kecil
-        4: { cellWidth: 25 }, // Supplier - lebih kecil
-        5: { cellWidth: 42 }, // Problem - tetap
-        6: { cellWidth: 25 }, // Timing - lebih kecil
-        7: { cellWidth: 38 }, // Action - lebih kecil
-        8: { cellWidth: 15 }, // Due Date - lebih kecil
-        9: { cellWidth: 18 }, // PIC - lebih kecil
-        10: { cellWidth: 32 }, // Note - lebih kecil
-        11: { cellWidth: 12, halign: 'center' } // Status - lebih kecil
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 8, halign: 'center' },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 42 },
+        6: { cellWidth: 25 },
+        7: { cellWidth: 38 },
+        8: { cellWidth: 15 },
+        9: { cellWidth: 18 },
+        10: { cellWidth: 32 },
+        11: { cellWidth: 12, halign: 'center' }
       },
       margin: { left: 15, right: 15 },
       didDrawPage: function(data) {
@@ -776,7 +776,7 @@ function downloadPDF() {
       }
     });
     
-    // FOOTER - lebih kecil dan tanpa watermark
+    // FOOTER
     const finalY = (doc as any).lastAutoTable.finalY || 180;
     
     // Garis footer tipis
@@ -784,7 +784,7 @@ function downloadPDF() {
     doc.setLineWidth(0.2);
     doc.line(15, finalY + 5, 280, finalY + 5);
     
-    // Informasi dokumen - lebih kecil
+    // Informasi dokumen
     doc.setFontSize(6);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
