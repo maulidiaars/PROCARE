@@ -17,36 +17,28 @@ export default function Home() {
     const updateDateTime = () => {
       const now = new Date();
       
-      // Format YYYY-MM-DD untuk input date
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       setCurrentDate(`${year}-${month}-${day}`);
       
-      // Format HH:MM untuk input time
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       setCurrentTime(`${hours}:${minutes}`);
     };
 
-    // Update segera
     updateDateTime();
     
-    // Update setiap detik
     const interval = setInterval(updateDateTime, 1000);
     
     return () => clearInterval(interval);
   }, []);
 
-  // Fungsi manual untuk show picker - pake cara yang aman
   const handleDateClick = (e: React.MouseEvent<HTMLInputElement>) => {
     try {
-      // Coba showPicker, kalau error di-catch aja
       (e.target as HTMLInputElement).showPicker();
     } catch (error) {
-      // Fallback: focus aja kalau showPicker gagal
       (e.target as HTMLInputElement).focus();
-      console.log('ShowPicker not supported, using focus instead');
     }
   };
 
@@ -57,7 +49,6 @@ export default function Home() {
     try {
       const formData = new FormData(e.currentTarget);
       
-      // Ambil value dari form (bisa value real-time atau value yang diganti user)
       const timingDate = formData.get('timingDate') as string;
       const timingTime = formData.get('timingTime') as string;
       
@@ -113,7 +104,6 @@ export default function Home() {
         window.location.href = '/dashboard';
       } else {
         (e.target as HTMLFormElement).reset();
-        // Reset ke real-time date/time setelah form reset
         const dateInput = document.querySelector('input[name="timingDate"]') as HTMLInputElement;
         const timeInput = document.querySelector('input[name="timingTime"]') as HTMLInputElement;
         if (dateInput) dateInput.value = currentDate;
@@ -147,7 +137,7 @@ export default function Home() {
         margin: '0 auto'
       }}>
         
-        {/* HEADER */}
+        {/* HEADER - JUDUL DIUBAH */}
         <div style={{ 
           background: 'linear-gradient(135deg, #1a0f0f 0%, #2c0b0b 100%)',
           padding: '24px 20px',
@@ -165,7 +155,7 @@ export default function Home() {
               border: '1px solid rgba(255,255,255,0.1)'
             }}>
               <i className="fas fa-heartbeat" style={{ color: '#c44a4a', marginRight: '8px' }}></i>
-              <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>PROBLEM & CARE</span>
+              <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>FORM FOLLOW UP</span>
             </div>
             
             <h1 style={{ 
@@ -175,7 +165,7 @@ export default function Home() {
               margin: '0 0 8px 0',
               letterSpacing: '1px'
             }}>
-              PROCARE
+              BNF MATERIAL CONTROL
             </h1>
             
             <p style={{ 
@@ -183,7 +173,7 @@ export default function Home() {
               fontSize: '14px',
               margin: 0
             }}>
-              Material Control Problem Resolution
+              Submit this form to report and follow up on material issues.
             </p>
             <p style={{ 
               color: '#8b3a3a',
@@ -200,7 +190,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* FORM CARD */}
+        {/* FORM CARD - (TETAP) */}
         <div style={{ 
           background: '#121212',
           border: '1px solid #2a2a2a',
@@ -548,7 +538,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* FOOTER */}
+        {/* FOOTER - DIUBAH */}
         <p style={{ 
           textAlign: 'center', 
           color: '#666', 
@@ -556,7 +546,7 @@ export default function Home() {
           marginTop: '20px'
         }}>
           <i className="fas fa-heart me-1" style={{ color: '#8b3a3a' }}></i>
-          PROCARE - Material Control Problem Resolution
+          BNF Material Control - Problem Resolution System
         </p>
       </div>
 

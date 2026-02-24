@@ -27,7 +27,6 @@ type Problem = {
   pic: string | null;
   note_remark: string | null;
   created_at: string;
-  // HAPUS updated_at - gak perlu
   status: string;
 };
 
@@ -71,14 +70,12 @@ export default function Dashboard() {
       const today = new Date();
       const isFirstDayOfMonth = today.getDate() === 1;
       
-      // Cek apakah ini pertama kali di bulan ini?
       const lastResetStr = localStorage.getItem('lastResetDate');
       const lastReset = lastResetStr ? new Date(lastResetStr) : null;
       
       const currentMonthYear = `${today.getFullYear()}-${today.getMonth()}`;
       const lastResetMonthYear = lastReset ? `${lastReset.getFullYear()}-${lastReset.getMonth()}` : null;
 
-      // Kalau tanggal 1 DAN belum pernah reset bulan ini
       if (isFirstDayOfMonth && lastResetMonthYear !== currentMonthYear) {
         const result = await Swal.fire({
           title: '🔄 Reset Bulanan',
@@ -127,7 +124,6 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // 1. Ambil semua data yang ada
       const { data: currentData, error: fetchError } = await supabase
         .from('problems')
         .select('*');
@@ -135,19 +131,14 @@ export default function Dashboard() {
       if (fetchError) throw fetchError;
 
       if (currentData && currentData.length > 0) {
-        // 2. Simpan ke tabel history (opsional - kalau mau ada history)
-        // Kalau mau bikin tabel terpisah, bisa ditambahkan di sini
-        
-        // 3. Hapus semua data
         const { error: deleteError } = await supabase
           .from('problems')
           .delete()
-          .neq('id', 0); // Hapus semua
+          .neq('id', 0);
 
         if (deleteError) throw deleteError;
       }
 
-      // 4. Refresh data
       await fetchData();
 
     } catch (error) {
@@ -168,7 +159,7 @@ export default function Dashboard() {
   // Fetch data
   useEffect(() => {
     fetchData();
-    checkAndResetMonthly(); // Cek reset setiap load
+    checkAndResetMonthly();
     
     const interval = setInterval(() => {
       fetchData(true);
@@ -311,7 +302,7 @@ export default function Dashboard() {
     return '';
   }
 
-  // ========== FUNGSI FORMAT YANG DIPERBAIKI ==========
+  // ========== FUNGSI FORMAT ==========
   function formatDateOnly(dateStr: string) {
     if (!dateStr) return '-';
     try {
@@ -536,18 +527,17 @@ export default function Dashboard() {
     }
   }
 
-  // ========== DOWNLOAD EXCEL - DIPERBAIKI ==========
+  // ========== DOWNLOAD EXCEL ==========
   function downloadExcel() {
     try {
       const wb = XLSX.utils.book_new();
       
-      // Title dengan format perusahaan
-      const title = `PT. DENSO INDONESIA - PROCARE MATERIAL CONTROL`;
+      // TITLE DIUBAH
+      const title = `PT. DENSO INDONESIA - BNF MATERIAL CONTROL`;
       const periode = `Periode: ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
       const dateGenerated = `Generated: ${new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium' })}`;
       const totalData = `Total Records: ${filteredProblems.length}`;
       
-      // Header dengan informasi
       const wsData = [
         [title],
         [periode],
@@ -558,7 +548,6 @@ export default function Dashboard() {
          'TIMING DATE', 'TIMING TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE/REMARK', 'STATUS']
       ];
       
-      // Data - tanpa pemotongan
       filteredProblems.forEach((item, index) => {
         wsData.push([
           String(index + 1),
@@ -566,20 +555,19 @@ export default function Dashboard() {
           String(item.part_name || '-'),
           String(item.local_import),
           String(item.supplier_name || '-'),
-          String(item.problem), // TANPA PEMOTONGAN
-          formatDateOnly(item.timing_date_time), // Date aja
-          formatTimeOnly(item.timing_date_time), // Time aja
-          String(item.action || '-'), // TANPA PEMOTONGAN
+          String(item.problem),
+          formatDateOnly(item.timing_date_time),
+          formatTimeOnly(item.timing_date_time),
+          String(item.action || '-'),
           formatDateOnly(item.due_date_max),
           String(item.pic || '-'),
-          String(item.note_remark || '-'), // TANPA PEMOTONGAN
+          String(item.note_remark || '-'),
           String(item.status || 'Open')
         ]);
       });
       
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       
-      // Merge title cells
       ws['!merges'] = [
         { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
         { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
@@ -587,32 +575,30 @@ export default function Dashboard() {
         { s: { r: 3, c: 0 }, e: { r: 3, c: 12 } }
       ];
       
-      // Styling untuk title
       ws['A1'].s = { font: { bold: true, sz: 16, color: { rgb: "8B3A3A" } } };
       ws['A2'].s = { font: { italic: true, sz: 12 } };
       ws['A3'].s = { font: { sz: 11 } };
       ws['A4'].s = { font: { bold: true, sz: 11 } };
       
-      // Lebar kolom yang optimal
       ws['!cols'] = [
         { wch: 5 },   // NO
         { wch: 15 },  // DENSO PN
         { wch: 25 },  // PART NAME
         { wch: 8 },   // L/I
         { wch: 30 },  // SUPPLIER
-        { wch: 50 },  // PROBLEM - DIPERBESAR
+        { wch: 50 },  // PROBLEM
         { wch: 12 },  // TIMING DATE
         { wch: 10 },  // TIMING TIME
-        { wch: 50 },  // ACTION - DIPERBESAR
+        { wch: 50 },  // ACTION
         { wch: 12 },  // DUE DATE
         { wch: 20 },  // PIC
-        { wch: 40 },  // NOTE - DIPERBESAR
+        { wch: 40 },  // NOTE
         { wch: 12 }   // STATUS
       ];
       
-      XLSX.utils.book_append_sheet(wb, ws, 'PROCARE Data');
+      XLSX.utils.book_append_sheet(wb, ws, 'BNF Data');
       
-      const fileName = `PROCARE_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.xlsx`;
+      const fileName = `BNF_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.xlsx`;
       
       XLSX.writeFile(wb, fileName);
       
@@ -643,250 +629,232 @@ export default function Dashboard() {
     }
   }
 
-// ========== DOWNLOAD PDF - VERSI SUPER RAPI ==========
-function downloadPDF() {
-  try {
-    // Buat PDF dengan ukuran A4 Landscape
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    // Warna corporate: Maroon #8b3a3a
-    const maroon: [number, number, number] = [139, 58, 58];
-    
-    // HEADER PERUSAHAAN
-    doc.setFontSize(14);
-    doc.setTextColor(maroon[0], maroon[1], maroon[2]);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PT. DENSO INDONESIA', 15, 12);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.setFont('helvetica', 'normal');
-    doc.text('PROCARE - Material Control Problem Resolution', 15, 18);
-    
-    // Periode dan Info
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    
-    const today = new Date();
-    const periode = `Periode: ${today.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
-    const generated = `Generated: ${today.toLocaleDateString('id-ID')} ${today.toLocaleTimeString('id-ID')}`;
-    const totalData = `Total Records: ${filteredProblems.length}`;
-    
-    doc.text(periode, 15, 24);
-    doc.text(generated, 15, 28);
-    doc.text(totalData, 15, 32);
-    
-    // Garis pemisah
-    doc.setDrawColor(maroon[0], maroon[1], maroon[2]);
-    doc.setLineWidth(0.3);
-    doc.line(15, 35, 280, 35);
-    
-    // Kolom tabel - disesuaikan
-    const tableColumn = [
-      'No',
-      'DENSO PN',
-      'Part Name',
-      'L/I',
-      'Supplier',
-      'Problem',
-      'Timing Date',
-      'Time',
-      'Action',
-      'Due Date',
-      'PIC',
-      'Note',
-      'Status'
-    ];
-    
-    // Data tabel - FORMAT KHUSUS
-    const tableRows = filteredProblems.map((item, index) => {
-      // Format L/I biar rapi
-      let liValue = item.local_import;
-      if (liValue === 'Local') liValue = 'Local';
-      if (liValue === 'Import') liValue = 'Import';
+  // ========== DOWNLOAD PDF ==========
+  function downloadPDF() {
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      return [
-        index + 1,
-        item.denso_pn,
-        item.part_name || '-',
-        liValue, // L/I sudah rapi
-        item.supplier_name || '-',
-        item.problem,
-        formatDateOnly(item.timing_date_time), // DATE di atas
-        formatTimeOnly(item.timing_date_time), // TIME di bawah
-        item.action || '-',
-        formatDateOnly(item.due_date_max), // DUE DATE
-        item.pic || '-',
-        item.note_remark || '-',
-        item.status // STATUS
+      const maroon: [number, number, number] = [139, 58, 58];
+      
+      // HEADER PERUSAHAAN - TITLE DIUBAH
+      doc.setFontSize(14);
+      doc.setTextColor(maroon[0], maroon[1], maroon[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PT. DENSO INDONESIA', 15, 12);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.setFont('helvetica', 'normal');
+      doc.text('BNF Material Control - Problem Resolution', 15, 18);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      
+      const today = new Date();
+      const periode = `Periode: ${today.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+      const generated = `Generated: ${today.toLocaleDateString('id-ID')} ${today.toLocaleTimeString('id-ID')}`;
+      const totalData = `Total Records: ${filteredProblems.length}`;
+      
+      doc.text(periode, 15, 24);
+      doc.text(generated, 15, 28);
+      doc.text(totalData, 15, 32);
+      
+      doc.setDrawColor(maroon[0], maroon[1], maroon[2]);
+      doc.setLineWidth(0.3);
+      doc.line(15, 35, 280, 35);
+      
+      const tableColumn = [
+        'No',
+        'DENSO PN',
+        'Part Name',
+        'L/I',
+        'Supplier',
+        'Problem',
+        'Timing Date',
+        'Time',
+        'Action',
+        'Due Date',
+        'PIC',
+        'Note',
+        'Status'
       ];
-    });
-    
-    // AutoTable dengan styling super rapi
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 38,
-      styles: { 
-        fontSize: 7,
-        cellPadding: 2,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-        textColor: [50, 50, 50],
-        overflow: 'linebreak',
-        cellWidth: 'wrap',
-        valign: 'middle'
-      },
-      headStyles: { 
-        fillColor: maroon, 
-        textColor: 255,
-        fontSize: 8,
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: {
-        textColor: [50, 50, 50]
-      },
-      alternateRowStyles: { 
-        fillColor: [245, 245, 245] 
-      },
-      columnStyles: {
-        0: { cellWidth: 8, halign: 'center', valign: 'middle' }, // No
-        1: { cellWidth: 18, valign: 'middle' }, // DENSO PN
-        2: { cellWidth: 20, valign: 'middle' }, // Part Name
-        3: { cellWidth: 11, halign: 'center', valign: 'middle' }, // L/I - DIPERBESAR dikit
-        4: { cellWidth: 25, valign: 'middle' }, // Supplier
-        5: { cellWidth: 40, valign: 'middle' }, // Problem
-        6: { cellWidth: 17, halign: 'center', valign: 'middle' }, // Timing Date
-        7: { cellWidth: 12, halign: 'center', valign: 'middle' }, // Timing Time
-        8: { cellWidth: 35, valign: 'middle' }, // Action
-        9: { cellWidth: 18, halign: 'center', valign: 'middle' }, // Due Date - DIPERBESAR
-        10: { cellWidth: 18, valign: 'middle' }, // PIC
-        11: { cellWidth: 30, valign: 'middle' }, // Note
-        12: { cellWidth: 15, halign: 'center', valign: 'middle' } // Status - DIPERBESAR
-      },
-      margin: { left: 15, right: 15 },
-      didParseCell: function(data) {
-        // Styling khusus untuk kolom Status
-        if (data.section === 'body' && data.column.index === 12) {
-          const status = data.cell.raw as string;
-          
-          if (status === 'Open') {
-            data.cell.styles.fillColor = [255, 243, 205]; // Kuning muda
-            data.cell.styles.textColor = [0, 0, 0];
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.halign = 'center';
-          } else if (status === 'In Progress') {
-            data.cell.styles.fillColor = [209, 236, 241]; // Biru muda
-            data.cell.styles.textColor = [0, 0, 0];
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.halign = 'center';
-          } else if (status === 'Closed') {
-            data.cell.styles.fillColor = [212, 237, 218]; // Hijau muda
-            data.cell.styles.textColor = [0, 100, 0];
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.halign = 'center';
-          }
-        }
+      
+      const tableRows = filteredProblems.map((item, index) => {
+        let liValue = item.local_import;
+        if (liValue === 'Local') liValue = 'Local';
+        if (liValue === 'Import') liValue = 'Import';
         
-        // Styling untuk Due Date (warning/overdue)
-        if (data.section === 'body' && data.column.index === 9) {
-          const dueDate = data.cell.raw as string;
-          if (dueDate !== '-') {
-            try {
-              const [day, month, year] = dueDate.split('/');
-              const due = new Date(`${year}-${month}-${day}`);
-              due.setHours(0, 0, 0, 0);
-              
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              
-              const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              
-              if (diffDays < 0) {
-                data.cell.styles.textColor = [220, 53, 69]; // Merah
-                data.cell.styles.fontStyle = 'bold';
-              } else if (diffDays <= 3) {
-                data.cell.styles.textColor = [255, 193, 7]; // Kuning
-                data.cell.styles.fontStyle = 'bold';
-              }
+        return [
+          index + 1,
+          item.denso_pn,
+          item.part_name || '-',
+          liValue,
+          item.supplier_name || '-',
+          item.problem,
+          formatDateOnly(item.timing_date_time),
+          formatTimeOnly(item.timing_date_time),
+          item.action || '-',
+          formatDateOnly(item.due_date_max),
+          item.pic || '-',
+          item.note_remark || '-',
+          item.status
+        ];
+      });
+      
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 38,
+        styles: { 
+          fontSize: 7,
+          cellPadding: 2,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+          textColor: [50, 50, 50],
+          overflow: 'linebreak',
+          cellWidth: 'wrap',
+          valign: 'middle'
+        },
+        headStyles: { 
+          fillColor: maroon, 
+          textColor: 255,
+          fontSize: 8,
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle'
+        },
+        bodyStyles: {
+          textColor: [50, 50, 50]
+        },
+        alternateRowStyles: { 
+          fillColor: [245, 245, 245] 
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center', valign: 'middle' },
+          1: { cellWidth: 18, valign: 'middle' },
+          2: { cellWidth: 20, valign: 'middle' },
+          3: { cellWidth: 14, halign: 'center', valign: 'middle' },
+          4: { cellWidth: 25, valign: 'middle' },
+          5: { cellWidth: 40, valign: 'middle' },
+          6: { cellWidth: 17, halign: 'center', valign: 'middle' },
+          7: { cellWidth: 12, halign: 'center', valign: 'middle' },
+          8: { cellWidth: 35, valign: 'middle' },
+          9: { cellWidth: 18, halign: 'center', valign: 'middle' },
+          10: { cellWidth: 18, valign: 'middle' },
+          11: { cellWidth: 30, valign: 'middle' },
+          12: { cellWidth: 15, halign: 'center', valign: 'middle' }
+        },
+        margin: { left: 15, right: 15 },
+        didParseCell: function(data) {
+          if (data.section === 'body' && data.column.index === 12) {
+            const status = data.cell.raw as string;
+            
+            if (status === 'Open') {
+              data.cell.styles.fillColor = [255, 243, 205];
+              data.cell.styles.textColor = [0, 0, 0];
+              data.cell.styles.fontStyle = 'bold';
               data.cell.styles.halign = 'center';
-            } catch (e) {
-              // Abaikan error parsing
+            } else if (status === 'In Progress') {
+              data.cell.styles.fillColor = [209, 236, 241];
+              data.cell.styles.textColor = [0, 0, 0];
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.halign = 'center';
+            } else if (status === 'Closed') {
+              data.cell.styles.fillColor = [212, 237, 218];
+              data.cell.styles.textColor = [0, 100, 0];
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.halign = 'center';
             }
           }
+          
+          if (data.section === 'body' && data.column.index === 9) {
+            const dueDate = data.cell.raw as string;
+            if (dueDate !== '-') {
+              try {
+                const [day, month, year] = dueDate.split('/');
+                const due = new Date(`${year}-${month}-${day}`);
+                due.setHours(0, 0, 0, 0);
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays < 0) {
+                  data.cell.styles.textColor = [220, 53, 69];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (diffDays <= 3) {
+                  data.cell.styles.textColor = [255, 193, 7];
+                  data.cell.styles.fontStyle = 'bold';
+                }
+                data.cell.styles.halign = 'center';
+              } catch (e) {}
+            }
+          }
+        },
+        didDrawPage: function(data) {
+          doc.setFontSize(6);
+          doc.setTextColor(150, 150, 150);
+          doc.text(
+            `Halaman ${data.pageNumber}`,
+            data.settings.margin.left,
+            doc.internal.pageSize.height - 8
+          );
+          doc.text(
+            `Dicetak: ${new Date().toLocaleString('id-ID')}`,
+            doc.internal.pageSize.width - data.settings.margin.right - 50,
+            doc.internal.pageSize.height - 8
+          );
         }
-      },
-      didDrawPage: function(data) {
-        // Footer setiap halaman
-        doc.setFontSize(6);
-        doc.setTextColor(150, 150, 150);
-        doc.text(
-          `Halaman ${data.pageNumber}`,
-          data.settings.margin.left,
-          doc.internal.pageSize.height - 8
-        );
-        doc.text(
-          `Dicetak: ${new Date().toLocaleString('id-ID')}`,
-          doc.internal.pageSize.width - data.settings.margin.right - 50,
-          doc.internal.pageSize.height - 8
-        );
-      }
-    });
-    
-    // FOOTER
-    const finalY = (doc as any).lastAutoTable.finalY || 180;
-    
-    // Garis footer tipis
-    doc.setDrawColor(maroon[0], maroon[1], maroon[2]);
-    doc.setLineWidth(0.2);
-    doc.line(15, finalY + 5, 280, finalY + 5);
-    
-    // Informasi dokumen
-    doc.setFontSize(6);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    
-    doc.text('PT. DENSO INDONESIA - Material Control Division', 15, finalY + 10);
-    doc.text('Dokumen ini digenerate otomatis oleh sistem PROCARE', 15, finalY + 14);
-    
-    // Simpan PDF
-    const fileName = `PROCARE_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.pdf`;
-    
-    doc.save(fileName);
-    
-    // Notifikasi sukses
-    Swal.fire({
-      icon: 'success',
-      title: '✅ PDF Berhasil',
-      html: `
-        <div style="text-align: left; font-size: 13px;">
-          <p><i class="fas fa-file-pdf" style="color: #dc3545;"></i> File: ${fileName}</p>
-          <p><i class="fas fa-database" style="color: #8b3a3a;"></i> Total Data: ${filteredProblems.length}</p>
-        </div>
-      `,
-      timer: 2000,
-      showConfirmButton: false,
-      background: '#1a1a1a',
-      color: 'white'
-    });
-    
-  } catch (error) {
-    console.error('PDF error:', error);
-    Swal.fire({
-      icon: 'error',
-      title: '❌ Gagal',
-      text: 'Terjadi kesalahan saat download PDF',
-      background: '#1a1a1a',
-      color: 'white'
-    });
+      });
+      
+      const finalY = (doc as any).lastAutoTable.finalY || 180;
+      
+      doc.setDrawColor(maroon[0], maroon[1], maroon[2]);
+      doc.setLineWidth(0.2);
+      doc.line(15, finalY + 5, 280, finalY + 5);
+      
+      doc.setFontSize(6);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      
+      doc.text('PT. DENSO INDONESIA - Material Control Division', 15, finalY + 10);
+      doc.text('Dokumen ini digenerate otomatis oleh sistem BNF', 15, finalY + 14);
+      
+      const fileName = `BNF_${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2,'0')}${new Date().getDate().toString().padStart(2,'0')}.pdf`;
+      
+      doc.save(fileName);
+      
+      Swal.fire({
+        icon: 'success',
+        title: '✅ PDF Berhasil',
+        html: `
+          <div style="text-align: left; font-size: 13px;">
+            <p><i class="fas fa-file-pdf" style="color: #dc3545;"></i> File: ${fileName}</p>
+            <p><i class="fas fa-database" style="color: #8b3a3a;"></i> Total Data: ${filteredProblems.length}</p>
+          </div>
+        `,
+        timer: 2000,
+        showConfirmButton: false,
+        background: '#1a1a1a',
+        color: 'white'
+      });
+      
+    } catch (error) {
+      console.error('PDF error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: '❌ Gagal',
+        text: 'Terjadi kesalahan saat download PDF',
+        background: '#1a1a1a',
+        color: 'white'
+      });
+    }
   }
-}
 
   if (loading) {
     return (
@@ -911,7 +879,7 @@ function downloadPDF() {
     <div style={{ background: '#000000', minHeight: '100vh', padding: '16px' }}>
       <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
         
-        {/* HEADER */}
+        {/* HEADER - JUDUL DIUBAH */}
         <div style={{ 
           background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
           padding: '24px 20px',
@@ -934,7 +902,7 @@ function downloadPDF() {
                 margin: '0 0 4px 0'
               }}>
                 <i className="fas fa-heartbeat me-2" style={{ color: '#ffa5a5' }}></i>
-                PROCARE DASHBOARD
+                DASHBOARD CONTROL - BNF MATERIAL CONTROL
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0 }}>
                 <i className="far fa-clock me-1"></i>Update: {lastUpdate || '-'}
@@ -953,7 +921,7 @@ function downloadPDF() {
           </div>
         </div>
 
-        {/* STATS CARDS */}
+        {/* STATS CARDS - (TETAP) */}
         <div style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -998,7 +966,7 @@ function downloadPDF() {
           </div>
         </div>
 
-        {/* FILTER SECTION */}
+        {/* FILTER SECTION - (TETAP) */}
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             <div>
@@ -1033,7 +1001,7 @@ function downloadPDF() {
           </div>
         </div>
 
-        {/* TABLE SECTION - DIPERBAIKI DENGAN BORDER DAN SCROLL */}
+        {/* TABLE SECTION - (TETAP) */}
         <div style={{ 
           background: '#1a1a1a',
           borderRadius: '12px',
@@ -1096,171 +1064,168 @@ function downloadPDF() {
             </div>
           </div>
           
-{/* Table dengan Scroll Horizontal */}
-<div style={{ 
-  overflowX: 'auto',
-  overflowY: 'visible',
-  border: '1px solid #333',
-  borderRadius: '8px'
-}}>
-  <table style={{ 
-    width: '100%', 
-    borderCollapse: 'collapse',
-    minWidth: '1500px',
-    color: 'white',
-    fontSize: '13px'
-  }}>
-    <thead>
-      <tr style={{ background: '#2a2a2a' }}>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '50px' }}>No</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Supplier</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Problem</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>Timing</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Action</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Due Date</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Note</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Status</th>
-        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Aksi</th>
-      </tr>
-    </thead>
-    <tbody>
-      {currentItems.length === 0 ? (
-        <tr>
-          <td colSpan={13} style={{ 
-            textAlign: 'center', 
-            padding: '60px 20px', 
-            color: '#666',
-            border: '1px solid #404040'
+          {/* Table dengan Scroll Horizontal - (TETAP) */}
+          <div style={{ 
+            overflowX: 'auto',
+            overflowY: 'visible',
+            border: '1px solid #333',
+            borderRadius: '8px'
           }}>
-            <i className="fas fa-folder-open" style={{ fontSize: '40px', marginBottom: '16px', color: '#8b3a3a' }}></i>
-            <p>Tidak Ada Data</p>
-          </td>
-        </tr>
-      ) : (
-        currentItems.map((item, index) => {
-          const dueDateClass = getDueDateClass(item.due_date_max);
-          const rowIndex = startIndex + index + 1;
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              minWidth: '1500px',
+              color: 'white',
+              fontSize: '13px'
+            }}>
+              <thead>
+                <tr style={{ background: '#2a2a2a' }}>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '50px' }}>No</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Supplier</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Problem</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>Timing</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Action</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Due Date</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Note</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Status</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} style={{ 
+                      textAlign: 'center', 
+                      padding: '60px 20px', 
+                      color: '#666',
+                      border: '1px solid #404040'
+                    }}>
+                      <i className="fas fa-folder-open" style={{ fontSize: '40px', marginBottom: '16px', color: '#8b3a3a' }}></i>
+                      <p>Tidak Ada Data</p>
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((item, index) => {
+                    const dueDateClass = getDueDateClass(item.due_date_max);
+                    const rowIndex = startIndex + index + 1;
+                    
+                    let statusColor = '', statusText = '';
+                    if (item.status === 'Open') {
+                      statusColor = '#ffc107';
+                      statusText = '#1a1a1a';
+                    } else if (item.status === 'In Progress') {
+                      statusColor = '#17a2b8';
+                      statusText = 'white';
+                    } else if (item.status === 'Closed') {
+                      statusColor = '#28a745';
+                      statusText = 'white';
+                    }
+                    
+                    return (
+                      <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.denso_pn}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.part_name || '-'}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.problem}</td>
+                        
+                        {/* TIMING */}
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              <i className="far fa-calendar-alt" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
+                              <span>{formatDateOnly(item.timing_date_time)}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              <i className="far fa-clock" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
+                              <span style={{ fontSize: '11px', color: '#ccc' }}>{formatTimeOnly(item.timing_date_time)}</span>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.action || '-'}</td>
+                        
+                        <td 
+                          style={{ 
+                            padding: '12px 4px', 
+                            textAlign: 'center', 
+                            border: '1px solid #404040' 
+                          }}
+                          className={dueDateClass}
+                        >
+                          {formatDate(item.due_date_max)}
+                        </td>
+                        
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
+                        
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                          <span style={{ 
+                            background: statusColor,
+                            color: statusText,
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            display: 'inline-block',
+                            minWidth: '90px'
+                          }}>
+                            {item.status}
+                          </span>
+                        </td>
+                        
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <button 
+                              style={{ 
+                                background: '#8b3a3a', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
+                                opacity: item.status === 'Closed' ? 0.5 : 1,
+                                fontSize: '12px',
+                                minWidth: '60px'
+                              }}
+                              onClick={() => item.status !== 'Closed' && openEditModal(item)}
+                              disabled={item.status === 'Closed'}
+                            >
+                              <i className="fas fa-edit me-1"></i> Edit
+                            </button>
+                            <button 
+                              style={{ 
+                                background: '#dc3545', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
+                                opacity: item.status === 'Closed' ? 0.5 : 1,
+                                fontSize: '12px',
+                                minWidth: '60px'
+                              }}
+                              onClick={() => item.status !== 'Closed' && deleteProblem(item.id)}
+                              disabled={item.status === 'Closed'}
+                            >
+                              <i className="fas fa-trash me-1"></i> Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
           
-          let statusColor = '', statusText = '';
-          if (item.status === 'Open') {
-            statusColor = '#ffc107';
-            statusText = '#1a1a1a';
-          } else if (item.status === 'In Progress') {
-            statusColor = '#17a2b8';
-            statusText = 'white';
-          } else if (item.status === 'Closed') {
-            statusColor = '#28a745';
-            statusText = 'white';
-          }
-          
-          return (
-            <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.denso_pn}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.part_name || '-'}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.problem}</td>
-              
-              {/* TIMING */}
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <i className="far fa-calendar-alt" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
-                    <span>{formatDateOnly(item.timing_date_time)}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <i className="far fa-clock" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
-                    <span style={{ fontSize: '11px', color: '#ccc' }}>{formatTimeOnly(item.timing_date_time)}</span>
-                  </div>
-                </div>
-              </td>
-              
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.action || '-'}</td>
-              
-              {/* DUE DATE - PAKAI className TERPISAH */}
-              <td 
-                style={{ 
-                  padding: '12px 4px', 
-                  textAlign: 'center', 
-                  border: '1px solid #404040' 
-                }}
-                className={dueDateClass}
-              >
-                {formatDate(item.due_date_max)}
-              </td>
-              
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
-              
-              {/* STATUS */}
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
-                <span style={{ 
-                  background: statusColor,
-                  color: statusText,
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  display: 'inline-block',
-                  minWidth: '90px'
-                }}>
-                  {item.status}
-                </span>
-              </td>
-              
-              {/* AKSI */}
-              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  <button 
-                    style={{ 
-                      background: '#8b3a3a', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px',
-                      padding: '6px 12px',
-                      cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
-                      opacity: item.status === 'Closed' ? 0.5 : 1,
-                      fontSize: '12px',
-                      minWidth: '60px'
-                    }}
-                    onClick={() => item.status !== 'Closed' && openEditModal(item)}
-                    disabled={item.status === 'Closed'}
-                  >
-                    <i className="fas fa-edit me-1"></i> Edit
-                  </button>
-                  <button 
-                    style={{ 
-                      background: '#dc3545', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px',
-                      padding: '6px 12px',
-                      cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
-                      opacity: item.status === 'Closed' ? 0.5 : 1,
-                      fontSize: '12px',
-                      minWidth: '60px'
-                    }}
-                    onClick={() => item.status !== 'Closed' && deleteProblem(item.id)}
-                    disabled={item.status === 'Closed'}
-                  >
-                    <i className="fas fa-trash me-1"></i> Hapus
-                  </button>
-                </div>
-              </td>
-            </tr>
-          );
-        })
-      )}
-    </tbody>
-  </table>
-</div>
-          
-          {/* Pagination */}
+          {/* Pagination - (TETAP) */}
           {filteredProblems.length > 0 && (
             <div style={{ 
               display: 'flex', 
@@ -1323,329 +1288,328 @@ function downloadPDF() {
         </div>
       </div>
 
-{/* EDIT MODAL - VERSION LANDSCAPE */}
-<div className="modal fade" id="updateModal" tabIndex={-1} data-bs-backdrop="static">
-  <div className="modal-dialog modal-lg modal-dialog-centered">
-    <div className="modal-content" style={{ 
-      background: '#1a1a1a', 
-      border: '2px solid #8b3a3a',
-      borderRadius: '16px'
-    }}>
-      {/* HEADER MODAL */}
-      <div className="modal-header" style={{ 
-        background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
-        border: 'none',
-        padding: '20px 24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            background: '#8b3a3a',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+      {/* EDIT MODAL - (TETAP) */}
+      <div className="modal fade" id="updateModal" tabIndex={-1} data-bs-backdrop="static">
+        <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-content" style={{ 
+            background: '#1a1a1a', 
+            border: '2px solid #8b3a3a',
+            borderRadius: '16px'
           }}>
-            <i className="fas fa-edit" style={{ color: 'white', fontSize: '18px' }}></i>
-          </div>
-          <div>
-            <h5 className="modal-title text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
-              Update Problem Material
-            </h5>
-            <p style={{ color: '#aaa', fontSize: '12px', margin: '4px 0 0 0' }}>
-              {selectedProblem?.denso_pn} - {selectedProblem?.part_name}
-            </p>
-          </div>
-        </div>
-        <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" style={{ opacity: 0.8 }}></button>
-      </div>
-
-      {/* BODY MODAL - GRID 2 KOLOM */}
-      <div className="modal-body" style={{ padding: '24px' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px'
-        }}>
-          
-          {/* KOLOM KIRI */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
-            {/* ACTION */}
-            <div>
-              <label style={{ 
-                color: '#ccc', 
-                fontSize: '12px', 
-                marginBottom: '6px', 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <i className="fas fa-tasks" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                ACTION <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <textarea 
-                className="form-control" 
-                rows={4}
-                value={editAction}
-                onChange={(e) => setEditAction(e.target.value)}
-                style={{ 
-                  background: '#2a2a2a', 
-                  border: '1px solid #404040', 
-                  color: 'white',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  resize: 'vertical'
-                }}
-                placeholder="Tuliskan tindakan yang sudah dilakukan..."
-              />
+            {/* HEADER MODAL */}
+            <div className="modal-header" style={{ 
+              background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+              border: 'none',
+              padding: '20px 24px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#8b3a3a',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-edit" style={{ color: 'white', fontSize: '18px' }}></i>
+                </div>
+                <div>
+                  <h5 className="modal-title text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
+                    Update Problem Material
+                  </h5>
+                  <p style={{ color: '#aaa', fontSize: '12px', margin: '4px 0 0 0' }}>
+                    {selectedProblem?.denso_pn} - {selectedProblem?.part_name}
+                  </p>
+                </div>
+              </div>
+              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" style={{ opacity: 0.8 }}></button>
             </div>
 
-            {/* DUE DATE */}
-            <div>
-              <label style={{ 
-                color: '#ccc', 
-                fontSize: '12px', 
-                marginBottom: '6px', 
+            {/* BODY MODAL - GRID 2 KOLOM */}
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '20px'
+              }}>
+                
+                {/* KOLOM KIRI */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* ACTION */}
+                  <div>
+                    <label style={{ 
+                      color: '#ccc', 
+                      fontSize: '12px', 
+                      marginBottom: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <i className="fas fa-tasks" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
+                      ACTION <span style={{ color: '#dc3545' }}>*</span>
+                    </label>
+                    <textarea 
+                      className="form-control" 
+                      rows={4}
+                      value={editAction}
+                      onChange={(e) => setEditAction(e.target.value)}
+                      style={{ 
+                        background: '#2a2a2a', 
+                        border: '1px solid #404040', 
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        resize: 'vertical'
+                      }}
+                      placeholder="Tuliskan tindakan yang sudah dilakukan..."
+                    />
+                  </div>
+
+                  {/* DUE DATE */}
+                  <div>
+                    <label style={{ 
+                      color: '#ccc', 
+                      fontSize: '12px', 
+                      marginBottom: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <i className="fas fa-calendar-alt" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
+                      DUE DATE MAX <span style={{ color: '#dc3545' }}>*</span>
+                    </label>
+                    <input 
+                      type="date" 
+                      className="form-control"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      style={{ 
+                        background: '#2a2a2a', 
+                        border: '1px solid #404040', 
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  {/* PIC */}
+                  <div>
+                    <label style={{ 
+                      color: '#ccc', 
+                      fontSize: '12px', 
+                      marginBottom: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <i className="fas fa-user" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
+                      PIC <span style={{ color: '#dc3545' }}>*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-control"
+                      value={editPic}
+                      onChange={(e) => setEditPic(e.target.value)}
+                      style={{ 
+                        background: '#2a2a2a', 
+                        border: '1px solid #404040', 
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        width: '100%'
+                      }}
+                      placeholder="Nama PIC"
+                    />
+                  </div>
+                </div>
+
+                {/* KOLOM KANAN */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  {/* STATUS */}
+                  <div>
+                    <label style={{ 
+                      color: '#ccc', 
+                      fontSize: '12px', 
+                      marginBottom: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <i className="fas fa-info-circle" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
+                      STATUS <span style={{ color: '#dc3545' }}>*</span>
+                    </label>
+                    <select 
+                      className="form-select"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      style={{ 
+                        background: '#2a2a2a', 
+                        border: '1px solid #404040', 
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        width: '100%'
+                      }}
+                    >
+                      {selectedProblem?.status === 'Open' && (
+                        <>
+                          <option value="Open">🔴 Open</option>
+                          <option value="In Progress">🟡 In Progress</option>
+                          <option value="Closed">🟢 Closed</option>
+                        </>
+                      )}
+                      {selectedProblem?.status === 'In Progress' && (
+                        <>
+                          <option value="In Progress">🟡 In Progress</option>
+                          <option value="Closed">🟢 Closed</option>
+                        </>
+                      )}
+                      {selectedProblem?.status === 'Closed' && (
+                        <option value="Closed">🟢 Closed</option>
+                      )}
+                    </select>
+                    
+                    {/* INFO STATUS */}
+                    {selectedProblem?.status === 'In Progress' && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        border: '1px solid rgba(255, 193, 7, 0.3)',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        color: '#ffc107'
+                      }}>
+                        <i className="fas fa-info-circle me-1"></i>
+                        Status In Progress hanya bisa diubah ke Closed
+                      </div>
+                    )}
+                    
+                    {selectedProblem?.status === 'Closed' && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '8px 12px',
+                        background: 'rgba(40, 167, 69, 0.1)',
+                        border: '1px solid rgba(40, 167, 69, 0.3)',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        color: '#28a745'
+                      }}>
+                        <i className="fas fa-lock me-1"></i>
+                        Data Closed tidak dapat diubah
+                      </div>
+                    )}
+                  </div>
+
+                  {/* NOTE / REMARK */}
+                  <div>
+                    <label style={{ 
+                      color: '#ccc', 
+                      fontSize: '12px', 
+                      marginBottom: '6px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <i className="fas fa-sticky-note" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
+                      NOTE / REMARK
+                    </label>
+                    <textarea 
+                      className="form-control" 
+                      rows={4}
+                      value={editNote}
+                      onChange={(e) => setEditNote(e.target.value)}
+                      style={{ 
+                        background: '#2a2a2a', 
+                        border: '1px solid #404040', 
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        resize: 'vertical'
+                      }}
+                      placeholder="Catatan tambahan..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* INFO CREATED */}
+              <div style={{
+                marginTop: '20px',
+                padding: '12px 16px',
+                background: '#222',
+                borderRadius: '8px',
+                border: '1px solid #333',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '12px',
+                fontSize: '12px',
+                color: '#aaa'
               }}>
-                <i className="fas fa-calendar-alt" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                DUE DATE MAX <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <input 
-                type="date" 
-                className="form-control"
-                value={editDueDate}
-                onChange={(e) => setEditDueDate(e.target.value)}
-                style={{ 
-                  background: '#2a2a2a', 
-                  border: '1px solid #404040', 
-                  color: 'white',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  width: '100%'
-                }}
-              />
+                <i className="fas fa-clock" style={{ color: '#8b3a3a' }}></i>
+                <span>
+                  Created: {selectedProblem ? new Date(selectedProblem.created_at).toLocaleString('id-ID') : '-'}
+                </span>
+              </div>
             </div>
 
-            {/* PIC */}
-            <div>
-              <label style={{ 
-                color: '#ccc', 
-                fontSize: '12px', 
-                marginBottom: '6px', 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <i className="fas fa-user" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                PIC <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <input 
-                type="text" 
-                className="form-control"
-                value={editPic}
-                onChange={(e) => setEditPic(e.target.value)}
+            {/* FOOTER MODAL */}
+            <div className="modal-footer" style={{ 
+              borderTop: '1px solid #333',
+              padding: '16px 24px',
+              background: '#151515'
+            }}>
+              <button 
+                type="button" 
+                className="btn" 
                 style={{ 
                   background: '#2a2a2a', 
                   border: '1px solid #404040', 
                   color: 'white',
+                  padding: '10px 24px',
                   borderRadius: '8px',
-                  padding: '12px',
                   fontSize: '13px',
-                  width: '100%'
-                }}
-                placeholder="Nama PIC"
-              />
-            </div>
-          </div>
-
-          {/* KOLOM KANAN */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* STATUS */}
-            <div>
-              <label style={{ 
-                color: '#ccc', 
-                fontSize: '12px', 
-                marginBottom: '6px', 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <i className="fas fa-info-circle" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                STATUS <span style={{ color: '#dc3545' }}>*</span>
-              </label>
-              <select 
-                className="form-select"
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value)}
-                style={{ 
-                  background: '#2a2a2a', 
-                  border: '1px solid #404040', 
-                  color: 'white',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  width: '100%'
-                }}
+                  fontWeight: 500
+                }} 
+                data-bs-dismiss="modal"
               >
-                {selectedProblem?.status === 'Open' && (
-                  <>
-                    <option value="Open">🔴 Open</option>
-                    <option value="In Progress">🟡 In Progress</option>
-                    <option value="Closed">🟢 Closed</option>
-                  </>
-                )}
-                {selectedProblem?.status === 'In Progress' && (
-                  <>
-                    <option value="In Progress">🟡 In Progress</option>
-                    <option value="Closed">🟢 Closed</option>
-                  </>
-                )}
-                {selectedProblem?.status === 'Closed' && (
-                  <option value="Closed">🟢 Closed</option>
-                )}
-              </select>
-              
-              {/* INFO STATUS */}
-              {selectedProblem?.status === 'In Progress' && (
-                <div style={{
-                  marginTop: '8px',
-                  padding: '8px 12px',
-                  background: 'rgba(255, 193, 7, 0.1)',
-                  border: '1px solid rgba(255, 193, 7, 0.3)',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  color: '#ffc107'
-                }}>
-                  <i className="fas fa-info-circle me-1"></i>
-                  Status In Progress hanya bisa diubah ke Closed
-                </div>
-              )}
-              
-              {selectedProblem?.status === 'Closed' && (
-                <div style={{
-                  marginTop: '8px',
-                  padding: '8px 12px',
-                  background: 'rgba(40, 167, 69, 0.1)',
-                  border: '1px solid rgba(40, 167, 69, 0.3)',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  color: '#28a745'
-                }}>
-                  <i className="fas fa-lock me-1"></i>
-                  Data Closed tidak dapat diubah
-                </div>
-              )}
-            </div>
-
-            {/* NOTE / REMARK */}
-            <div>
-              <label style={{ 
-                color: '#ccc', 
-                fontSize: '12px', 
-                marginBottom: '6px', 
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <i className="fas fa-sticky-note" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                NOTE / REMARK
-              </label>
-              <textarea 
-                className="form-control" 
-                rows={4}
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
+                <i className="fas fa-times me-2"></i>
+                Batal
+              </button>
+              <button 
+                type="button" 
+                className="btn" 
                 style={{ 
-                  background: '#2a2a2a', 
-                  border: '1px solid #404040', 
-                  color: 'white',
+                  background: '#8b3a3a', 
+                  color: 'white', 
+                  border: 'none',
+                  padding: '10px 32px',
                   borderRadius: '8px',
-                  padding: '12px',
                   fontSize: '13px',
-                  resize: 'vertical'
-                }}
-                placeholder="Catatan tambahan..."
-              />
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }} 
+                onClick={saveUpdate}
+              >
+                <i className="fas fa-save"></i>
+                Simpan Perubahan
+              </button>
             </div>
           </div>
         </div>
-
-        {/* INFO CREATED - UDAH DIPERBAIKI, TIDAK PAKAI updated_at */}
-        <div style={{
-          marginTop: '20px',
-          padding: '12px 16px',
-          background: '#222',
-          borderRadius: '8px',
-          border: '1px solid #333',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontSize: '12px',
-          color: '#aaa'
-        }}>
-          <i className="fas fa-clock" style={{ color: '#8b3a3a' }}></i>
-          <span>
-            {/* HANYA PAKAI created_at, TIDAK PAKAI updated_at */}
-            Created: {selectedProblem ? new Date(selectedProblem.created_at).toLocaleString('id-ID') : '-'}
-          </span>
-        </div>
       </div>
-
-      {/* FOOTER MODAL */}
-      <div className="modal-footer" style={{ 
-        borderTop: '1px solid #333',
-        padding: '16px 24px',
-        background: '#151515'
-      }}>
-        <button 
-          type="button" 
-          className="btn" 
-          style={{ 
-            background: '#2a2a2a', 
-            border: '1px solid #404040', 
-            color: 'white',
-            padding: '10px 24px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 500
-          }} 
-          data-bs-dismiss="modal"
-        >
-          <i className="fas fa-times me-2"></i>
-          Batal
-        </button>
-        <button 
-          type="button" 
-          className="btn" 
-          style={{ 
-            background: '#8b3a3a', 
-            color: 'white', 
-            border: 'none',
-            padding: '10px 32px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }} 
-          onClick={saveUpdate}
-        >
-          <i className="fas fa-save"></i>
-          Simpan Perubahan
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
       {/* FLOATING BUTTON */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
