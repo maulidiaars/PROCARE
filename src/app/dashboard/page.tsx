@@ -14,7 +14,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer
 } from 'recharts';
@@ -268,21 +267,24 @@ export default function Dashboard() {
       });
 
       // ========== UPDATE DATA GRAFIK ==========
-      // Buat data 7 hari terakhir
       const last7Days = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString('id-ID', { weekday: 'short' });
+        
+        const dayStr = date.toLocaleDateString('id-ID', { 
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short'
+        });
         
         const dayData = {
-          date: dateStr,
+          date: dayStr,
           open: 0,
           progress: 0,
           closed: 0
         };
 
-        // Filter data untuk hari itu
         dataWithStatus.forEach(item => {
           const itemDate = new Date(item.created_at);
           if (itemDate.toDateString() === date.toDateString()) {
@@ -1169,189 +1171,213 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* STATS CARDS */}
+        {/* GRAFIK + STATS SECTION - UDAH DIPERBAIKI */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '16px',
+          gridTemplateColumns: '2fr 1fr',
+          gap: '20px',
           marginBottom: '20px'
         }}>
-          {/* TOTAL */}
-          <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid #333' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#8b3a3a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: 'white' }}>
-              <i className="fas fa-tasks"></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '12px', color: '#c44a4a' }}>TOTAL</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{stats.total}</div>
-            </div>
-          </div>
-
-          {/* OPEN */}
-          <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid #333' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#ffc107', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#1a1a1a' }}>
-              <i className="fas fa-folder-open"></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '12px', color: '#ffc107' }}>OPEN</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{stats.open}</div>
-            </div>
-          </div>
-
-          {/* PROGRESS */}
-          <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid #333' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#17a2b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: 'white' }}>
-              <i className="fas fa-spinner"></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '12px', color: '#17a2b8' }}>PROGRESS</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{stats.progress}</div>
-            </div>
-          </div>
-
-          {/* CLOSED */}
-          <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid #333' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#28a745', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: 'white' }}>
-              <i className="fas fa-check-circle"></i>
-            </div>
-            <div>
-              <div style={{ fontSize: '12px', color: '#28a745' }}>CLOSED</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: 'white' }}>{stats.closed}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ===== GRAFIK PERFORMANCE TREND ===== */}
-        <div style={{
-          background: '#1a1a1a',
-          borderRadius: '16px',
-          padding: '24px',
-          border: '1px solid #333',
-          marginBottom: '20px'
-        }}>
+          
+          {/* KIRI: GRAFIK (TOOLTIP DIHAPUS) */}
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '16px'
-          }}>
-            <div>
-              <h4 style={{
-                color: 'white',
-                margin: '0 0 4px 0',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                Performance Trend
-              </h4>
-              <p style={{ color: '#aaa', fontSize: '12px', margin: 0 }}>
-                <i className="far fa-calendar-alt me-1"></i>
-                7 Hari Terakhir
-              </p>
-            </div>
-
-            <select style={{
-              background: '#2a2a2a',
-              border: '1px solid #404040',
-              color: 'white',
-              padding: '8px 32px 8px 16px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              outline: 'none',
-              cursor: 'pointer'
-            }}>
-              <option value="7">Last 7 Days</option>
-              <option value="14">Last 14 Days</option>
-              <option value="30">Last 30 Days</option>
-            </select>
-          </div>
-
-          <div style={{ width: '100%', height: '350px' }}>
-            <ResponsiveContainer>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#aaa"
-                  tick={{ fill: '#aaa', fontSize: 12 }}
-                  axisLine={{ stroke: '#404040' }}
-                />
-                <YAxis 
-                  stroke="#aaa"
-                  tick={{ fill: '#aaa', fontSize: 12 }}
-                  axisLine={{ stroke: '#404040' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#2a2a2a',
-                    border: '1px solid #8b3a3a',
-                    borderRadius: '8px',
-                    color: 'white'
-                  }}
-                  labelStyle={{ color: 'white', fontWeight: 'bold' }}
-                />
-                <Legend 
-                  wrapperStyle={{ color: 'white', paddingTop: '20px' }}
-                  iconType="circle"
-                />
-                <Bar 
-                  dataKey="open" 
-                  fill="#ffc107" 
-                  name="Open"
-                  radius={[4, 4, 0, 0]}
-                  barSize={20}
-                />
-                <Bar 
-                  dataKey="progress" 
-                  fill="#17a2b8" 
-                  name="In Progress"
-                  radius={[4, 4, 0, 0]}
-                  barSize={20}
-                />
-                <Bar 
-                  dataKey="closed" 
-                  fill="#28a745" 
-                  name="Closed"
-                  radius={[4, 4, 0, 0]}
-                  barSize={20}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Summary Stats */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            marginTop: '24px',
-            padding: '16px',
-            background: '#222',
-            borderRadius: '12px',
+            background: '#1a1a1a',
+            borderRadius: '16px',
+            padding: '20px',
             border: '1px solid #333'
           }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#ffc107', fontSize: '12px' }}>Total Open</div>
-              <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
-                {chartData.reduce((sum, item) => sum + (item.open || 0), 0)}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <h4 style={{
+                  color: 'white',
+                  margin: '0 0 4px 0',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
+                  Performance Trend 7 Hari
+                </h4>
+                <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
+                  <i className="far fa-calendar-alt me-1"></i>
+                  {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </p>
               </div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#17a2b8', fontSize: '12px' }}>Total Progress</div>
-              <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
-                {chartData.reduce((sum, item) => sum + (item.progress || 0), 0)}
-              </div>
+
+            <div style={{ width: '100%', height: '280px' }}>
+              <ResponsiveContainer>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#aaa"
+                    tick={{ fill: '#aaa', fontSize: 11 }}
+                    axisLine={{ stroke: '#404040' }}
+                  />
+                  <YAxis 
+                    stroke="#aaa"
+                    tick={{ fill: '#aaa', fontSize: 11 }}
+                    axisLine={{ stroke: '#404040' }}
+                  />
+                  {/* TOOLTIP DIHAPUS TOTAL */}
+                  <Legend 
+                    wrapperStyle={{ 
+                      color: 'white', 
+                      paddingTop: '15px',
+                      fontSize: '12px'
+                    }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                  <Bar 
+                    dataKey="open" 
+                    fill="#ffc107" 
+                    name="Open"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                  <Bar 
+                    dataKey="progress" 
+                    fill="#17a2b8" 
+                    name="In Progress"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                  <Bar 
+                    dataKey="closed" 
+                    fill="#28a745" 
+                    name="Closed"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#28a745', fontSize: '12px' }}>Total Closed</div>
-              <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
-                {chartData.reduce((sum, item) => sum + (item.closed || 0), 0)}
+          </div>
+
+          {/* KANAN: STATS MINIMALIS ELEGAN */}
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '1px solid #333',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              paddingBottom: '12px',
+              borderBottom: '1px solid #333',
+              marginBottom: '4px'
+            }}>
+              <i className="fas fa-chart-pie" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
+              <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>Ringkasan</span>
+            </div>
+
+            {/* Total */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: '#8b3a3a20',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '12px' }}></i>
+                </div>
+                <span style={{ color: '#aaa', fontSize: '13px' }}>Total</span>
               </div>
+              <span style={{ color: 'white', fontSize: '18px', fontWeight: 600 }}>{stats.total}</span>
+            </div>
+
+            {/* Open */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: '#ffc10720',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '12px' }}></i>
+                </div>
+                <span style={{ color: '#aaa', fontSize: '13px' }}>Open</span>
+              </div>
+              <span style={{ color: '#ffc107', fontSize: '18px', fontWeight: 600 }}>{stats.open}</span>
+            </div>
+
+            {/* Progress */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: '#17a2b820',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '12px' }}></i>
+                </div>
+                <span style={{ color: '#aaa', fontSize: '13px' }}>Progress</span>
+              </div>
+              <span style={{ color: '#17a2b8', fontSize: '18px', fontWeight: 600 }}>{stats.progress}</span>
+            </div>
+
+            {/* Closed */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: '#28a74520',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '12px' }}></i>
+                </div>
+                <span style={{ color: '#aaa', fontSize: '13px' }}>Closed</span>
+              </div>
+              <span style={{ color: '#28a745', fontSize: '18px', fontWeight: 600 }}>{stats.closed}</span>
             </div>
           </div>
         </div>
