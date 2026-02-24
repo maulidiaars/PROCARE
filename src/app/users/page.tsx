@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase, MASTER_USERS } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import Swal from 'sweetalert2';
 
 type User = {
@@ -11,7 +11,7 @@ type User = {
   npk: string;
   name: string;
   password: string;
-  role: 'staff';
+  role: 'master' | 'staff';
   created_at?: string;
 };
 
@@ -29,7 +29,6 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Cek login
     const userData = localStorage.getItem('currentUser');
     if (!userData) {
       router.push('/login');
@@ -39,7 +38,6 @@ export default function UsersPage() {
     const user = JSON.parse(userData);
     setCurrentUser(user);
 
-    // Cek role master
     if (user.role !== 'master') {
       Swal.fire({
         icon: 'error',
@@ -86,7 +84,6 @@ export default function UsersPage() {
       return;
     }
 
-    // Cek duplikat NPK (kecuali yang sedang diedit)
     const isDuplicate = users.some(u => 
       u.npk === npk && (editingId ? u.id !== editingId : true)
     );
@@ -104,7 +101,6 @@ export default function UsersPage() {
 
     try {
       if (editingId) {
-        // Update user
         const { error } = await supabase
           .from('users')
           .update({ npk, name, password })
@@ -122,7 +118,6 @@ export default function UsersPage() {
           color: 'white'
         });
       } else {
-        // Insert user baru
         const { error } = await supabase
           .from('users')
           .insert([{ npk, name, password, role: 'staff' }]);
@@ -140,7 +135,6 @@ export default function UsersPage() {
         });
       }
 
-      // Reset form
       setNpk('');
       setName('');
       setPassword('');
@@ -431,216 +425,213 @@ export default function UsersPage() {
           </div>
         )}
 
-{/* TABLE USERS - DENGAN BORDER RAPI */}
-<div style={{
-  background: '#1a1a1a',
-  border: '1px solid #333',
-  borderRadius: '12px',
-  padding: '20px',
-  overflow: 'hidden'
-}}>
-  <h3 style={{ color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-    <i className="fas fa-users" style={{ color: '#8b3a3a' }}></i>
-    Daftar Staff ({users.filter(u => u.role === 'staff').length})
-  </h3>
-
-  <div style={{ overflowX: 'auto' }}>
-    <table style={{ 
-      width: '100%', 
-      borderCollapse: 'collapse',
-      border: '1px solid #333'
-    }}>
-      <thead>
-        <tr style={{ 
-          background: '#2a2a2a',
-          borderBottom: '2px solid #8b3a3a'
+        {/* TABLE USERS */}
+        <div style={{
+          background: '#1a1a1a',
+          border: '1px solid #333',
+          borderRadius: '12px',
+          padding: '20px',
+          overflow: 'hidden'
         }}>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'center', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>No</th>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'left', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>NPK</th>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'left', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>Nama</th>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'left', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>Password</th>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'center', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>Role</th>
-          <th style={{ 
-            padding: '14px 12px', 
-            textAlign: 'center', 
-            border: '1px solid #404040',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {users.map((user, idx) => (
-          <tr key={user.id} style={{ 
-            background: idx % 2 === 0 ? '#1a1a1a' : '#222',
-            transition: '0.2s'
-          }}>
-            <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              textAlign: 'center',
-              color: '#aaa'
-            }}>{idx + 1}</td>
-            
-            <td style={{ 
-            padding: '12px', 
-            border: '1px solid #333', 
-            color: 'white',
-            fontWeight: 400 // semua sama aja
-            }}>{user.npk}</td>
-            
-            <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              color: 'white',
-              fontWeight: user.role === 'master' ? 400
-            }}>{user.name}</td>
-            
-            <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              color: user.role === 'master' ? '#888' : '#ffc107',
-              fontFamily: 'monospace'
-            }}>
-              {user.role === 'master' ? '••••••••' : user.password}
-            </td>
-            
-            <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              textAlign: 'center'
-            }}>
-              <span style={{ 
-                background: user.role === 'master' ? '#8b3a3a' : '#17a2b8', 
-                color: 'white', 
-                padding: '4px 12px', 
-                borderRadius: '20px', 
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'inline-block'
-              }}>
-                {user.role === 'master' ? '👑 MASTER' : 'STAFF'}
-              </span>
-            </td>
-            
-            <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              textAlign: 'center'
-            }}>
-              {user.role === 'master' ? (
-                <span style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
-                  <i className="fas fa-lock me-1"></i>System
-                </span>
-              ) : (
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => handleEdit(user)}
-                    style={{
-                      background: '#8b3a3a',
-                      border: 'none',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <i className="fas fa-edit"></i>
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(user.id!)}
-                    style={{
-                      background: '#dc3545',
-                      border: 'none',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <i className="fas fa-trash"></i>
-                    Hapus
-                  </button>
-                </div>
-              )}
-            </td>
-          </tr>
-        ))}
+          <h3 style={{ color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fas fa-users" style={{ color: '#8b3a3a' }}></i>
+            Daftar Staff ({users.filter(u => u.role === 'staff').length})
+          </h3>
 
-        {users.length === 0 && (
-          <tr>
-            <td colSpan={6} style={{ 
-              padding: '60px', 
-              textAlign: 'center', 
-              color: '#666',
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
               border: '1px solid #333'
             }}>
-              <i className="fas fa-users" style={{ fontSize: '48px', marginBottom: '16px', color: '#8b3a3a' }}></i>
-              <p>Belum ada user</p>
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
+              <thead>
+                <tr style={{ 
+                  background: '#2a2a2a',
+                  borderBottom: '2px solid #8b3a3a'
+                }}>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'center', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>No</th>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'left', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>NPK</th>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'left', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>Nama</th>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'left', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>Password</th>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'center', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>Role</th>
+                  <th style={{ 
+                    padding: '14px 12px', 
+                    textAlign: 'center', 
+                    border: '1px solid #404040',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user, idx) => (
+                  <tr key={user.id} style={{ 
+                    background: idx % 2 === 0 ? '#1a1a1a' : '#222'
+                  }}>
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      textAlign: 'center',
+                      color: '#aaa'
+                    }}>{idx + 1}</td>
+                    
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      color: 'white'
+                    }}>{user.npk}</td>
+                    
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      color: 'white'
+                    }}>{user.name}</td>
+                    
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      color: user.role === 'master' ? '#888' : '#ffc107',
+                      fontFamily: 'monospace'
+                    }}>
+                      {user.role === 'master' ? '••••••••' : user.password}
+                    </td>
+                    
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      textAlign: 'center'
+                    }}>
+                      <span style={{ 
+                        background: user.role === 'master' ? '#8b3a3a' : '#17a2b8', 
+                        color: 'white', 
+                        padding: '4px 12px', 
+                        borderRadius: '20px', 
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        display: 'inline-block'
+                      }}>
+                        {user.role === 'master' ? '👑 MASTER' : 'STAFF'}
+                      </span>
+                    </td>
+                    
+                    <td style={{ 
+                      padding: '12px', 
+                      border: '1px solid #333', 
+                      textAlign: 'center'
+                    }}>
+                      {user.role === 'master' ? (
+                        <span style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
+                          <i className="fas fa-lock me-1"></i>System
+                        </span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleEdit(user)}
+                            style={{
+                              background: '#8b3a3a',
+                              border: 'none',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <i className="fas fa-edit"></i>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.id!)}
+                            style={{
+                              background: '#dc3545',
+                              border: 'none',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <i className="fas fa-trash"></i>
+                            Hapus
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ 
+                      padding: '60px', 
+                      textAlign: 'center', 
+                      color: '#666',
+                      border: '1px solid #333'
+                    }}>
+                      <i className="fas fa-users" style={{ fontSize: '48px', marginBottom: '16px', color: '#8b3a3a' }}></i>
+                      <p>Belum ada user</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
