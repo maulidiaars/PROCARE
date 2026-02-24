@@ -902,7 +902,7 @@ export default function Dashboard() {
                 margin: '0 0 4px 0'
               }}>
                 <i className="fas fa-heartbeat me-2" style={{ color: '#ffa5a5' }}></i>
-                DASHBOARD CONTROL - BNF MATERIAL CONTROL
+                DASHBOARD MONITORING - BNF MATERIAL CONTROL
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0 }}>
                 <i className="far fa-clock me-1"></i>Update: {lastUpdate || '-'}
