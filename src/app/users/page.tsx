@@ -531,17 +531,17 @@ export default function UsersPage() {
             }}>{idx + 1}</td>
             
             <td style={{ 
-              padding: '12px', 
-              border: '1px solid #333', 
-              color: 'white',
-              fontWeight: user.role === 'master' ? 600 : 400
+            padding: '12px', 
+            border: '1px solid #333', 
+            color: 'white',
+            fontWeight: 400 // semua sama aja
             }}>{user.npk}</td>
             
             <td style={{ 
               padding: '12px', 
               border: '1px solid #333', 
               color: 'white',
-              fontWeight: user.role === 'master' ? 600 : 400
+              fontWeight: user.role === 'master' ? 400
             }}>{user.name}</td>
             
             <td style={{ 
