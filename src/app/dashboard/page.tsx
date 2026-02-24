@@ -1001,7 +1001,7 @@ export default function Dashboard() {
             </div>
           </div>
           
-    {/* Table dengan Scroll Horizontal */}
+{/* Table dengan Scroll Horizontal */}
 <div style={{ 
   overflowX: 'auto',
   overflowY: 'visible',
@@ -1011,105 +1011,25 @@ export default function Dashboard() {
   <table style={{ 
     width: '100%', 
     borderCollapse: 'collapse',
-    minWidth: '1500px', // Ditambah sedikit lebih lebar
+    minWidth: '1500px',
     color: 'white',
     fontSize: '13px'
   }}>
     <thead>
-      <tr style={{ 
-        background: '#2a2a2a'
-      }}>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '50px' // No
-        }}>No</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '100px' // DENSO PN
-        }}>DENSO PN</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '120px' // Part Name
-        }}>Part Name</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '60px' // L/I
-        }}>L/I</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '150px' // Supplier
-        }}> Supplier Name </th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '200px' // Problem
-        }}>Problem</th>
-        <th style={{ 
-          padding: '12px 4px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '130px' // Timing
-        }}>Timing</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '150px' // Action
-        }}>Action</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '100px' // Due Date
-        }}>Due Date</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '100px' // PIC
-        }}>PIC</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '120px' // Note
-        }}>Note</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '100px' // Status - DIPERBESAR
-        }}>Status</th>
-        <th style={{ 
-          padding: '12px 8px', 
-          textAlign: 'center',
-          border: '1px solid #404040',
-          fontWeight: 600,
-          width: '120px' // Aksi - DIPERBESAR
-        }}>Aksi</th>
+      <tr style={{ background: '#2a2a2a' }}>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '50px' }}>No</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Supplier</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Problem</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>Timing</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Action</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Due Date</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Note</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Status</th>
+        <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Aksi</th>
       </tr>
     </thead>
     <tbody>
@@ -1130,8 +1050,7 @@ export default function Dashboard() {
           const dueDateClass = getDueDateClass(item.due_date_max);
           const rowIndex = startIndex + index + 1;
           
-          let statusColor = '';
-          let statusText = '';
+          let statusColor = '', statusText = '';
           if (item.status === 'Open') {
             statusColor = '#ffc107';
             statusText = '#1a1a1a';
@@ -1144,125 +1063,80 @@ export default function Dashboard() {
           }
           
           return (
-            <tr key={item.id} style={{ 
-              background: index % 2 === 0 ? '#1a1a1a' : '#222'
-            }}>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{rowIndex}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040',
-                fontWeight: 500
-              }}>{item.denso_pn}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.part_name || '-'}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.local_import}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.supplier_name || '-'}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.problem}</td>
-              <td style={{ 
-                padding: '12px 4px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontWeight: 500 }}>{formatDateOnly(item.timing_date_time)}</span>
-                  <span style={{ fontSize: '11px', color: '#aaa' }}>{formatTimeOnly(item.timing_date_time)}</span>
+            <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.denso_pn}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.part_name || '-'}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.problem}</td>
+              
+              {/* TIMING */}
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <i className="far fa-calendar-alt" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
+                    <span>{formatDateOnly(item.timing_date_time)}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <i className="far fa-clock" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
+                    <span style={{ fontSize: '11px', color: '#ccc' }}>{formatTimeOnly(item.timing_date_time)}</span>
+                  </div>
                 </div>
               </td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.action || '-'}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040',
-                className: dueDateClass
-              }}>{formatDate(item.due_date_max)}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.pic || '-'}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>{item.note_remark || '-'}</td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <span style={{ 
-                    background: statusColor,
-                    color: statusText,
-                    padding: '6px 12px', // Ditambah paddingnya
-                    borderRadius: '20px',
-                    fontSize: '12px', // Sedikit lebih besar
-                    fontWeight: 600,
-                    display: 'inline-block',
-                    minWidth: '90px', // Lebar minimal biar konsisten
-                    textAlign: 'center'
-                  }}>
-                    {item.status}
-                  </span>
-                </div>
+              
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.action || '-'}</td>
+              
+              {/* DUE DATE - PAKAI className TERPISAH */}
+              <td 
+                style={{ 
+                  padding: '12px 4px', 
+                  textAlign: 'center', 
+                  border: '1px solid #404040' 
+                }}
+                className={dueDateClass}
+              >
+                {formatDate(item.due_date_max)}
               </td>
-              <td style={{ 
-                padding: '12px 8px', 
-                textAlign: 'center',
-                border: '1px solid #404040'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '8px', // Jarak antar button
-                  justifyContent: 'center',
-                  alignItems: 'center'
+              
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
+              
+              {/* STATUS */}
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                <span style={{ 
+                  background: statusColor,
+                  color: statusText,
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'inline-block',
+                  minWidth: '90px'
                 }}>
+                  {item.status}
+                </span>
+              </td>
+              
+              {/* AKSI */}
+              <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                   <button 
                     style={{ 
                       background: '#8b3a3a', 
                       color: 'white', 
                       border: 'none', 
                       borderRadius: '6px',
-                      padding: '6px 12px', // Diperbesar paddingnya
+                      padding: '6px 12px',
                       cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
                       opacity: item.status === 'Closed' ? 0.5 : 1,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      minWidth: '65px', // Lebar minimal biar seragam
-                      justifyContent: 'center'
+                      fontSize: '12px',
+                      minWidth: '60px'
                     }}
                     onClick={() => item.status !== 'Closed' && openEditModal(item)}
                     disabled={item.status === 'Closed'}
-                    title={item.status === 'Closed' ? 'Closed tidak bisa diedit' : 'Edit'}
                   >
-                    <i className="fas fa-edit"></i>
-                    <span>Edit</span>
+                    <i className="fas fa-edit me-1"></i> Edit
                   </button>
                   <button 
                     style={{ 
@@ -1270,22 +1144,16 @@ export default function Dashboard() {
                       color: 'white', 
                       border: 'none', 
                       borderRadius: '6px',
-                      padding: '6px 12px', // Diperbesar paddingnya
+                      padding: '6px 12px',
                       cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
                       opacity: item.status === 'Closed' ? 0.5 : 1,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      minWidth: '65px', // Lebar minimal biar seragam
-                      justifyContent: 'center'
+                      fontSize: '12px',
+                      minWidth: '60px'
                     }}
                     onClick={() => item.status !== 'Closed' && deleteProblem(item.id)}
                     disabled={item.status === 'Closed'}
-                    title={item.status === 'Closed' ? 'Closed tidak bisa dihapus' : 'Hapus'}
                   >
-                    <i className="fas fa-trash"></i>
-                    <span>Hapus</span>
+                    <i className="fas fa-trash me-1"></i> Hapus
                   </button>
                 </div>
               </td>
