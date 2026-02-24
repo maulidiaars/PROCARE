@@ -1,12 +1,54 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import Swal from 'sweetalert2';
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State untuk real-time date & time
+  const [currentDate, setCurrentDate] = useState('');
+  const [currentTime, setCurrentTime] = useState('');
+
+  // Update real-time date & time setiap detik
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      
+      // Format YYYY-MM-DD untuk input date
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      setCurrentDate(`${year}-${month}-${day}`);
+      
+      // Format HH:MM untuk input time
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+
+    // Update segera
+    updateDateTime();
+    
+    // Update setiap detik
+    const interval = setInterval(updateDateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fungsi manual untuk show picker - pake cara yang aman
+  const handleDateClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    try {
+      // Coba showPicker, kalau error di-catch aja
+      (e.target as HTMLInputElement).showPicker();
+    } catch (error) {
+      // Fallback: focus aja kalau showPicker gagal
+      (e.target as HTMLInputElement).focus();
+      console.log('ShowPicker not supported, using focus instead');
+    }
+  };
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -15,6 +57,7 @@ export default function Home() {
     try {
       const formData = new FormData(e.currentTarget);
       
+      // Ambil value dari form (bisa value real-time atau value yang diganti user)
       const timingDate = formData.get('timingDate') as string;
       const timingTime = formData.get('timingTime') as string;
       
@@ -70,6 +113,11 @@ export default function Home() {
         window.location.href = '/dashboard';
       } else {
         (e.target as HTMLFormElement).reset();
+        // Reset ke real-time date/time setelah form reset
+        const dateInput = document.querySelector('input[name="timingDate"]') as HTMLInputElement;
+        const timeInput = document.querySelector('input[name="timingTime"]') as HTMLInputElement;
+        if (dateInput) dateInput.value = currentDate;
+        if (timeInput) timeInput.value = currentTime;
       }
 
     } catch (error) {
@@ -99,7 +147,7 @@ export default function Home() {
         margin: '0 auto'
       }}>
         
-        {/* HEADER SEDERHANA */}
+        {/* HEADER */}
         <div style={{ 
           background: 'linear-gradient(135deg, #1a0f0f 0%, #2c0b0b 100%)',
           padding: '24px 20px',
@@ -137,6 +185,18 @@ export default function Home() {
             }}>
               Material Control Problem Resolution
             </p>
+            <p style={{ 
+              color: '#8b3a3a',
+              fontSize: '12px',
+              margin: '8px 0 0 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}>
+              <i className="fas fa-clock"></i>
+              Real-time: {currentDate} {currentTime}
+            </p>
           </div>
         </div>
 
@@ -169,7 +229,7 @@ export default function Home() {
             Input Problem Material
           </h2>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -185,6 +245,7 @@ export default function Home() {
                   type="text"
                   name="densoPn"
                   required
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -207,6 +268,7 @@ export default function Home() {
                 <input
                   type="text"
                   name="partName"
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -254,6 +316,7 @@ export default function Home() {
                 <input
                   type="text"
                   name="supplierName"
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -277,6 +340,7 @@ export default function Home() {
                   name="problem"
                   required
                   rows={3}
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -292,15 +356,20 @@ export default function Home() {
                 />
               </div>
 
-              {/* TIMING DATE */}
+              {/* TIMING DATE - REAL TIME OTOMATIS */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   TIMING DATE <span style={{ color: '#dc3545' }}>*</span>
+                  <span style={{ color: '#8b3a3a', fontSize: '11px', marginLeft: '8px' }}>
+                    <i className="fas fa-sync-alt fa-spin"></i> Real-time
+                  </span>
                 </label>
                 <input
                   type="date"
                   name="timingDate"
                   required
+                  defaultValue={currentDate}
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -311,18 +380,27 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
+                  onClick={handleDateClick}
                 />
+                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                  Klik untuk mengganti tanggal (otomatis terisi real-time)
+                </small>
               </div>
 
-              {/* TIMING TIME */}
+              {/* TIMING TIME - REAL TIME OTOMATIS */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   TIMING TIME <span style={{ color: '#dc3545' }}>*</span>
+                  <span style={{ color: '#8b3a3a', fontSize: '11px', marginLeft: '8px' }}>
+                    <i className="fas fa-sync-alt fa-spin"></i> Real-time
+                  </span>
                 </label>
                 <input
                   type="time"
                   name="timingTime"
                   required
+                  defaultValue={currentTime}
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -333,7 +411,11 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
+                  onClick={handleDateClick}
                 />
+                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                  Klik untuk mengganti jam (otomatis terisi real-time)
+                </small>
               </div>
 
               {/* ACTION */}
@@ -344,6 +426,7 @@ export default function Home() {
                 <input
                   type="text"
                   name="action"
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -367,6 +450,7 @@ export default function Home() {
                   type="date"
                   name="dueDateMax"
                   required
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -377,6 +461,7 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
+                  onClick={handleDateClick}
                 />
               </div>
 
@@ -388,6 +473,7 @@ export default function Home() {
                 <input
                   type="text"
                   name="pic"
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -410,6 +496,7 @@ export default function Home() {
                 <textarea
                   name="noteRemark"
                   rows={2}
+                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
