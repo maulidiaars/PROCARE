@@ -643,7 +643,7 @@ export default function Dashboard() {
     }
   }
 
-// ========== DOWNLOAD PDF - VERSI SUPER KOMPAK ==========
+// ========== DOWNLOAD PDF - VERSI SUPER RAPI ==========
 function downloadPDF() {
   try {
     // Buat PDF dengan ukuran A4 Landscape
@@ -653,10 +653,10 @@ function downloadPDF() {
       format: 'a4'
     });
     
-    // Warna corporate: Maroon #8b3a3a - PASTIKAN TIPENYA BENAR
-    const maroon: [number, number, number] = [139, 58, 58]; // INI YANG DIPERBAIKI
+    // Warna corporate: Maroon #8b3a3a
+    const maroon: [number, number, number] = [139, 58, 58];
     
-    // HEADER PERUSAHAAN - lebih kecil
+    // HEADER PERUSAHAAN
     doc.setFontSize(14);
     doc.setTextColor(maroon[0], maroon[1], maroon[2]);
     doc.setFont('helvetica', 'bold');
@@ -667,7 +667,7 @@ function downloadPDF() {
     doc.setFont('helvetica', 'normal');
     doc.text('PROCARE - Material Control Problem Resolution', 15, 18);
     
-    // Periode dan Info - lebih kecil
+    // Periode dan Info
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     
@@ -685,7 +685,7 @@ function downloadPDF() {
     doc.setLineWidth(0.3);
     doc.line(15, 35, 280, 35);
     
-    // Kolom tabel - diperkecil fontnya
+    // Kolom tabel - disesuaikan
     const tableColumn = [
       'No',
       'DENSO PN',
@@ -693,7 +693,8 @@ function downloadPDF() {
       'L/I',
       'Supplier',
       'Problem',
-      'Timing',
+      'Timing Date',
+      'Time',
       'Action',
       'Due Date',
       'PIC',
@@ -701,23 +702,31 @@ function downloadPDF() {
       'Status'
     ];
     
-    // Data tabel
-    const tableRows = filteredProblems.map((item, index) => [
-      index + 1,
-      item.denso_pn,
-      item.part_name || '-',
-      item.local_import,
-      item.supplier_name || '-',
-      item.problem,
-      formatDateTime(item.timing_date_time),
-      item.action || '-',
-      formatDateOnly(item.due_date_max),
-      item.pic || '-',
-      item.note_remark || '-',
-      item.status
-    ]);
+    // Data tabel - FORMAT KHUSUS
+    const tableRows = filteredProblems.map((item, index) => {
+      // Format L/I biar rapi
+      let liValue = item.local_import;
+      if (liValue === 'Local') liValue = 'Local';
+      if (liValue === 'Import') liValue = 'Import';
+      
+      return [
+        index + 1,
+        item.denso_pn,
+        item.part_name || '-',
+        liValue, // L/I sudah rapi
+        item.supplier_name || '-',
+        item.problem,
+        formatDateOnly(item.timing_date_time), // DATE di atas
+        formatTimeOnly(item.timing_date_time), // TIME di bawah
+        item.action || '-',
+        formatDateOnly(item.due_date_max), // DUE DATE
+        item.pic || '-',
+        item.note_remark || '-',
+        item.status // STATUS
+      ];
+    });
     
-    // AutoTable dengan font lebih kecil
+    // AutoTable dengan styling super rapi
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
@@ -729,10 +738,11 @@ function downloadPDF() {
         lineWidth: 0.1,
         textColor: [50, 50, 50],
         overflow: 'linebreak',
-        cellWidth: 'wrap'
+        cellWidth: 'wrap',
+        valign: 'middle'
       },
       headStyles: { 
-        fillColor: maroon, // SEKARANG UDAH AMAN KARENA TIPENYA BENAR
+        fillColor: maroon, 
         textColor: 255,
         fontSize: 8,
         fontStyle: 'bold',
@@ -746,20 +756,72 @@ function downloadPDF() {
         fillColor: [245, 245, 245] 
       },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 18 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 8, halign: 'center' },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 42 },
-        6: { cellWidth: 25 },
-        7: { cellWidth: 38 },
-        8: { cellWidth: 15 },
-        9: { cellWidth: 18 },
-        10: { cellWidth: 32 },
-        11: { cellWidth: 12, halign: 'center' }
+        0: { cellWidth: 8, halign: 'center', valign: 'middle' }, // No
+        1: { cellWidth: 18, valign: 'middle' }, // DENSO PN
+        2: { cellWidth: 20, valign: 'middle' }, // Part Name
+        3: { cellWidth: 11, halign: 'center', valign: 'middle' }, // L/I - DIPERBESAR dikit
+        4: { cellWidth: 25, valign: 'middle' }, // Supplier
+        5: { cellWidth: 40, valign: 'middle' }, // Problem
+        6: { cellWidth: 17, halign: 'center', valign: 'middle' }, // Timing Date
+        7: { cellWidth: 12, halign: 'center', valign: 'middle' }, // Timing Time
+        8: { cellWidth: 35, valign: 'middle' }, // Action
+        9: { cellWidth: 18, halign: 'center', valign: 'middle' }, // Due Date - DIPERBESAR
+        10: { cellWidth: 18, valign: 'middle' }, // PIC
+        11: { cellWidth: 30, valign: 'middle' }, // Note
+        12: { cellWidth: 15, halign: 'center', valign: 'middle' } // Status - DIPERBESAR
       },
       margin: { left: 15, right: 15 },
+      didParseCell: function(data) {
+        // Styling khusus untuk kolom Status
+        if (data.section === 'body' && data.column.index === 12) {
+          const status = data.cell.raw as string;
+          
+          if (status === 'Open') {
+            data.cell.styles.fillColor = [255, 243, 205]; // Kuning muda
+            data.cell.styles.textColor = [0, 0, 0];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.halign = 'center';
+          } else if (status === 'In Progress') {
+            data.cell.styles.fillColor = [209, 236, 241]; // Biru muda
+            data.cell.styles.textColor = [0, 0, 0];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.halign = 'center';
+          } else if (status === 'Closed') {
+            data.cell.styles.fillColor = [212, 237, 218]; // Hijau muda
+            data.cell.styles.textColor = [0, 100, 0];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.halign = 'center';
+          }
+        }
+        
+        // Styling untuk Due Date (warning/overdue)
+        if (data.section === 'body' && data.column.index === 9) {
+          const dueDate = data.cell.raw as string;
+          if (dueDate !== '-') {
+            try {
+              const [day, month, year] = dueDate.split('/');
+              const due = new Date(`${year}-${month}-${day}`);
+              due.setHours(0, 0, 0, 0);
+              
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diffDays < 0) {
+                data.cell.styles.textColor = [220, 53, 69]; // Merah
+                data.cell.styles.fontStyle = 'bold';
+              } else if (diffDays <= 3) {
+                data.cell.styles.textColor = [255, 193, 7]; // Kuning
+                data.cell.styles.fontStyle = 'bold';
+              }
+              data.cell.styles.halign = 'center';
+            } catch (e) {
+              // Abaikan error parsing
+            }
+          }
+        }
+      },
       didDrawPage: function(data) {
         // Footer setiap halaman
         doc.setFontSize(6);
