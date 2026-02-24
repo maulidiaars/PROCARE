@@ -27,6 +27,7 @@ type Problem = {
   pic: string | null;
   note_remark: string | null;
   created_at: string;
+  // HAPUS updated_at - gak perlu
   status: string;
 };
 
@@ -1262,7 +1263,7 @@ function downloadPDF() {
 
 {/* EDIT MODAL - VERSION LANDSCAPE */}
 <div className="modal fade" id="updateModal" tabIndex={-1} data-bs-backdrop="static">
-  <div className="modal-dialog modal-lg modal-dialog-centered"> {/* modal-lg untuk landscape */}
+  <div className="modal-dialog modal-lg modal-dialog-centered">
     <div className="modal-content" style={{ 
       background: '#1a1a1a', 
       border: '2px solid #8b3a3a',
@@ -1298,11 +1299,11 @@ function downloadPDF() {
         <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" style={{ opacity: 0.8 }}></button>
       </div>
 
-      {/* BODY MODAL - GRID 2 KOLOM (LANDSCAPE) */}
+      {/* BODY MODAL - GRID 2 KOLOM */}
       <div className="modal-body" style={{ padding: '24px' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr', // 2 kolom
+          gridTemplateColumns: '1fr 1fr',
           gap: '20px'
         }}>
           
@@ -1320,7 +1321,7 @@ function downloadPDF() {
                 gap: '6px'
               }}>
                 <i className="fas fa-tasks" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                ACTION <span style={{ color: '#dc3545', marginLeft: '4px' }}>*</span>
+                ACTION <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <textarea 
                 className="form-control" 
@@ -1515,7 +1516,7 @@ function downloadPDF() {
           </div>
         </div>
 
-        {/* INFO SINGKAT (OPSIONAL) */}
+        {/* INFO CREATED - UDAH DIPERBAIKI, TIDAK PAKAI updated_at */}
         <div style={{
           marginTop: '20px',
           padding: '12px 16px',
@@ -1529,7 +1530,10 @@ function downloadPDF() {
           color: '#aaa'
         }}>
           <i className="fas fa-clock" style={{ color: '#8b3a3a' }}></i>
-          <span>Last update: {selectedProblem ? new Date(selectedProblem.updated_at || selectedProblem.created_at).toLocaleString('id-ID') : '-'}</span>
+          <span>
+            {/* HANYA PAKAI created_at, TIDAK PAKAI updated_at */}
+            Created: {selectedProblem ? new Date(selectedProblem.created_at).toLocaleString('id-ID') : '-'}
+          </span>
         </div>
       </div>
 
