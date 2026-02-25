@@ -11,11 +11,15 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // State untuk image
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   // State untuk real-time date & time
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
 
-  // CEK LOGIN
   useEffect(() => {
     const userData = localStorage.getItem('currentUser');
     if (!userData) {
@@ -41,9 +45,7 @@ export default function Home() {
     };
 
     updateDateTime();
-    
     const interval = setInterval(updateDateTime, 1000);
-    
     return () => clearInterval(interval);
   }, []);
 
@@ -55,9 +57,47 @@ export default function Home() {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Cek size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire({
+        icon: 'error',
+        title: 'File too large',
+        text: 'Maximum size is 5MB',
+        background: '#1a1a1a',
+        color: 'white'
+      });
+      return;
+    }
+
+    // Cek tipe file
+    if (!file.type.startsWith('image/')) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid file',
+        text: 'Please select an image file',
+        background: '#1a1a1a',
+        color: 'white'
+      });
+      return;
+    }
+
+    setImageFile(file);
+    
+    // Buat preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleLogout = () => {
     Swal.fire({
-      title: 'Yakin logout?',
+      title: 'Logout?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
@@ -73,91 +113,153 @@ export default function Home() {
     });
   };
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setIsSubmitting(true);
+async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault();
+  setIsSubmitting(true);
 
-    try {
-      const formData = new FormData(e.currentTarget);
+  try {
+    let imageUrl = null;
+    
+    // Upload image jika ada
+    if (imageFile) {
+      setUploadingImage(true);
       
-      const timingDate = formData.get('timingDate') as string;
-      const timingTime = formData.get('timingTime') as string;
-      
-      if (!timingDate || !timingTime) {
-        throw new Error('Timing Date dan Time wajib diisi');
-      }
-      
-      const timingDateTime = `${timingDate}T${timingTime}:00`;
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `bnf-images/${fileName}`;
 
-      const densoPn = formData.get('densoPn') as string;
-      const localImport = formData.get('localImport') as string;
-      const problem = formData.get('problem') as string;
-      const dueDateMax = formData.get('dueDateMax') as string;
+      const { error: uploadError } = await supabase.storage
+        .from('bnf')
+        .upload(filePath, imageFile);
 
-      if (!densoPn || !localImport || !problem || !dueDateMax) {
-        throw new Error('Semua field bertanda * harus diisi');
-      }
-
-      const data = {
-        denso_pn: densoPn,
-        part_name: formData.get('partName') || null,
-        local_import: localImport,
-        supplier_name: formData.get('supplierName') || null,
-        problem: problem,
-        timing_date_time: timingDateTime,
-        action: formData.get('action') || null,
-        due_date_max: dueDateMax,
-        pic: formData.get('pic') || null,
-        note_remark: formData.get('noteRemark') || null,
-        status: 'Open'
-      };
-
-      const { error } = await supabase
-        .from('problems')
-        .insert([data]);
-
-      if (error) throw error;
-
-      const result = await Swal.fire({
-        icon: 'success',
-        title: '✅ Berhasil!',
-        text: 'Data problem berhasil disimpan',
-        background: '#1a1a1a',
-        color: 'white',
-        showCancelButton: true,
-        confirmButtonColor: '#8b3a3a',
-        cancelButtonColor: '#2a2a2a',
-        confirmButtonText: '📊 Lihat Dashboard',
-        cancelButtonText: '📝 Input Lagi'
-      });
-
-      if (result.isConfirmed) {
-        router.push('/dashboard');
-      } else {
-        (e.target as HTMLFormElement).reset();
-        const dateInput = document.querySelector('input[name="timingDate"]') as HTMLInputElement;
-        const timeInput = document.querySelector('input[name="timingTime"]') as HTMLInputElement;
-        if (dateInput) dateInput.value = currentDate;
-        if (timeInput) timeInput.value = currentTime;
+      if (uploadError) {
+        console.error('Upload error detail:', uploadError);
+        throw new Error(`Upload gagal: ${uploadError.message}`);
       }
 
-    } catch (error) {
-      console.error('Error detail:', error);
-      
-      Swal.fire({
-        icon: 'error',
-        title: '❌ Gagal!',
-        text: error instanceof Error ? error.message : 'Terjadi kesalahan',
-        background: '#1a1a1a',
-        color: 'white',
-        confirmButtonColor: '#8b3a3a'
-      });
-    } finally {
-      setIsSubmitting(false);
+      // Dapatkan URL publik
+      const { data: urlData } = supabase.storage
+        .from('bnf')
+        .getPublicUrl(filePath);
+
+      imageUrl = urlData.publicUrl;
+      setUploadingImage(false);
     }
-  }
 
-  // Tampilkan loading kalau belum login
+    // Ambil data form
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const timingDate = formData.get('timingDate') as string;
+    const timingTime = formData.get('timingTime') as string;
+    
+    if (!timingDate || !timingTime) {
+      throw new Error('Timing Date and Time are required');
+    }
+    
+    const timingDateTime = `${timingDate}T${timingTime}:00`;
+
+    const densoPn = formData.get('densoPn') as string;
+    const plan = formData.get('plan') as string;
+    const partName = formData.get('partName') as string;
+    const localImport = formData.get('localImport') as string;
+    const supplierName = formData.get('supplierName') as string;
+    const description = formData.get('description') as string;
+    const action = formData.get('action') as string;
+    const dueDateMax = formData.get('dueDateMax') as string;
+    const pic = formData.get('pic') as string;
+    const noteRemark = formData.get('noteRemark') as string;
+
+    // Validasi
+    if (!densoPn) throw new Error('DENSO PN wajib diisi');
+    if (!plan) throw new Error('Plan wajib diisi');
+    if (!localImport) throw new Error('Local/Import wajib diisi');
+    if (!description) throw new Error('Description wajib diisi');
+    if (!dueDateMax) throw new Error('Due Date Max wajib diisi');
+
+    const data = {
+      denso_pn: densoPn,
+      plan: plan,
+      part_name: partName || null,
+      local_import: localImport,
+      supplier_name: supplierName || null,
+      description: description,
+      timing_date_time: timingDateTime,
+      action: action || null,
+      due_date_max: dueDateMax,
+      pic: pic || null,
+      note_remark: noteRemark || null,
+      images: imageUrl,
+      status: 'Open'
+    };
+
+    console.log('Data yang akan dikirim:', data);
+
+    // Simpan ke database
+    const { error } = await supabase
+      .from('problems')
+      .insert([data]);
+
+    if (error) {
+      console.error('Supabase error detail:', error);
+      throw new Error(error.message);
+    }
+
+    // Berhasil
+    const result = await Swal.fire({
+      icon: 'success',
+      title: '✅ Success!',
+      text: 'BNF record has been saved',
+      background: '#1a1a1a',
+      color: 'white',
+      showCancelButton: true,
+      confirmButtonColor: '#8b3a3a',
+      cancelButtonColor: '#2a2a2a',
+      confirmButtonText: '📊 View Dashboard',
+      cancelButtonText: '📝 Add Another'
+    });
+
+    if (result.isConfirmed) {
+      router.push('/dashboard');
+    } else {
+      // Reset form
+      (e.target as HTMLFormElement).reset();
+      setImageFile(null);
+      setImagePreview(null);
+      
+      // Set tanggal & jam ke real-time
+      const dateInput = document.querySelector('input[name="timingDate"]') as HTMLInputElement;
+      const timeInput = document.querySelector('input[name="timingTime"]') as HTMLInputElement;
+      
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      
+      if (dateInput) dateInput.value = `${year}-${month}-${day}`;
+      if (timeInput) timeInput.value = `${hours}:${minutes}`;
+    }
+
+  } catch (error: any) {
+    console.error('Error lengkap:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    
+    Swal.fire({
+      icon: 'error',
+      title: '❌ Failed!',
+      text: error?.message || 'An error occurred',
+      background: '#1a1a1a',
+      color: 'white',
+      confirmButtonColor: '#8b3a3a'
+    });
+  } finally {
+    setIsSubmitting(false);
+    setUploadingImage(false);
+  }
+}
+
   if (!currentUser) {
     return (
       <div style={{ minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -177,7 +279,7 @@ export default function Home() {
         margin: '0 auto'
       }}>
         
-        {/* HEADER - DENGAN USER INFO */}
+        {/* HEADER */}
         <div style={{ 
           background: 'linear-gradient(135deg, #1a0f0f 0%, #2c0b0b 100%)',
           padding: '24px 20px',
@@ -201,8 +303,8 @@ export default function Home() {
                 marginBottom: '12px',
                 border: '1px solid rgba(255,255,255,0.1)'
               }}>
-                <i className="fas fa-heartbeat" style={{ color: '#c44a4a', marginRight: '8px' }}></i>
-                <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>FORM FOLLOW UP</span>
+                <i className="fas fa-clipboard-list" style={{ color: '#c44a4a', marginRight: '8px' }}></i>
+                <span style={{ color: 'white', fontSize: '14px', fontWeight: 500 }}>BNF FOLLOW UP FORM</span>
               </div>
               
               <h1 style={{ 
@@ -220,7 +322,7 @@ export default function Home() {
                 fontSize: '14px',
                 margin: 0
               }}>
-                Submit this form to report and follow up on material issues.
+                Submit this form to record and follow up on material BNF items.
               </p>
               <p style={{ 
                 color: '#8b3a3a',
@@ -274,7 +376,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* FORM CARD - (TETAP) */}
+        {/* FORM CARD */}
         <div style={{ 
           background: '#121212',
           border: '1px solid #2a2a2a',
@@ -300,7 +402,7 @@ export default function Home() {
             }}>
               <i className="fas fa-pen-alt" style={{ color: 'white' }}></i>
             </span>
-            Input Problem Material
+            Add New BNF Record
           </h2>
 
           <form onSubmit={handleSubmit} autoComplete="off">
@@ -319,7 +421,6 @@ export default function Home() {
                   type="text"
                   name="densoPn"
                   required
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -330,8 +431,34 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                  placeholder="Contoh: D12345"
+                  placeholder="Example: D12345"
                 />
+              </div>
+
+              {/* PLAN */}
+              <div>
+                <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  PLAN <span style={{ color: '#dc3545' }}>*</span>
+                </label>
+                <select
+                  name="plan"
+                  required
+                  style={{ 
+                    width: '100%',
+                    background: '#1e1e1e',
+                    border: '1px solid #333',
+                    color: 'white',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="">Select Plan</option>
+                  <option value="FAJAR">FAJAR</option>
+                  <option value="BEKASI">BEKASI</option>
+                  <option value="SIP">SIP</option>
+                </select>
               </div>
 
               {/* PART NAME */}
@@ -342,7 +469,6 @@ export default function Home() {
                 <input
                   type="text"
                   name="partName"
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -353,7 +479,7 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                  placeholder="Nama part"
+                  placeholder="Part name"
                 />
               </div>
 
@@ -376,7 +502,7 @@ export default function Home() {
                     outline: 'none'
                   }}
                 >
-                  <option value="">Pilih</option>
+                  <option value="">Select</option>
                   <option value="Local">Local</option>
                   <option value="Import">Import</option>
                 </select>
@@ -390,7 +516,6 @@ export default function Home() {
                 <input
                   type="text"
                   name="supplierName"
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -401,20 +526,19 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                  placeholder="Nama supplier"
+                  placeholder="Supplier name"
                 />
               </div>
 
-              {/* PROBLEM (FULL WIDTH) */}
+              {/* DESCRIPTION */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  PROBLEM <span style={{ color: '#dc3545' }}>*</span>
+                  DESCRIPTION <span style={{ color: '#dc3545' }}>*</span>
                 </label>
                 <textarea
-                  name="problem"
+                  name="description"
                   required
                   rows={3}
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -426,24 +550,20 @@ export default function Home() {
                     outline: 'none',
                     resize: 'vertical'
                   }}
-                  placeholder="Deskripsi problem..."
+                  placeholder="Description of the BNF item..."
                 />
               </div>
 
-              {/* TIMING DATE - REAL TIME OTOMATIS */}
+              {/* TIMING DATE */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   TIMING DATE <span style={{ color: '#dc3545' }}>*</span>
-                  <span style={{ color: '#8b3a3a', fontSize: '11px', marginLeft: '8px' }}>
-                    <i className="fas fa-sync-alt fa-spin"></i> Real-time
-                  </span>
                 </label>
                 <input
                   type="date"
                   name="timingDate"
                   required
                   defaultValue={currentDate}
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -456,25 +576,18 @@ export default function Home() {
                   }}
                   onClick={handleDateClick}
                 />
-                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                  Klik untuk mengganti tanggal (otomatis terisi real-time)
-                </small>
               </div>
 
-              {/* TIMING TIME - REAL TIME OTOMATIS */}
+              {/* TIMING TIME */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   TIMING TIME <span style={{ color: '#dc3545' }}>*</span>
-                  <span style={{ color: '#8b3a3a', fontSize: '11px', marginLeft: '8px' }}>
-                    <i className="fas fa-sync-alt fa-spin"></i> Real-time
-                  </span>
                 </label>
                 <input
                   type="time"
                   name="timingTime"
                   required
                   defaultValue={currentTime}
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -487,9 +600,6 @@ export default function Home() {
                   }}
                   onClick={handleDateClick}
                 />
-                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                  Klik untuk mengganti jam (otomatis terisi real-time)
-                </small>
               </div>
 
               {/* ACTION */}
@@ -500,7 +610,6 @@ export default function Home() {
                 <input
                   type="text"
                   name="action"
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -511,7 +620,7 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                  placeholder="Tindakan yang diambil"
+                  placeholder="Action taken"
                 />
               </div>
 
@@ -524,7 +633,6 @@ export default function Home() {
                   type="date"
                   name="dueDateMax"
                   required
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -547,7 +655,6 @@ export default function Home() {
                 <input
                   type="text"
                   name="pic"
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -562,7 +669,71 @@ export default function Home() {
                 />
               </div>
 
-              {/* NOTE / REMARK (FULL WIDTH) */}
+              {/* IMAGES - Upload File */}
+              <div>
+                <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  IMAGES
+                  <span style={{ color: '#8b3a3a', fontSize: '11px', marginLeft: '8px' }}>
+                    <i className="fas fa-info-circle"></i> Max 5MB
+                  </span>
+                </label>
+                <input
+                  type="file"
+                  name="images"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ 
+                    width: '100%',
+                    background: '#1e1e1e',
+                    border: '1px solid #333',
+                    color: 'white',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+                {uploadingImage && (
+                  <div style={{ marginTop: '8px', color: '#8b3a3a' }}>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
+                    Uploading...
+                  </div>
+                )}
+                {imagePreview && (
+                  <div style={{ marginTop: '12px' }}>
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      style={{ 
+                        maxWidth: '200px', 
+                        maxHeight: '100px',
+                        borderRadius: '8px',
+                        border: '1px solid #333'
+                      }} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImagePreview(null);
+                        setImageFile(null);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc3545',
+                        fontSize: '12px',
+                        marginLeft: '8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <i className="fas fa-times"></i> Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* NOTE / REMARK */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   NOTE / REMARK
@@ -570,7 +741,6 @@ export default function Home() {
                 <textarea
                   name="noteRemark"
                   rows={2}
-                  autoComplete="off"
                   style={{ 
                     width: '100%',
                     background: '#1e1e1e',
@@ -582,7 +752,7 @@ export default function Home() {
                     outline: 'none',
                     resize: 'vertical'
                   }}
-                  placeholder="Catatan tambahan..."
+                  placeholder="Additional notes..."
                 />
               </div>
             </div>
@@ -591,7 +761,7 @@ export default function Home() {
             <div style={{ marginTop: '30px' }}>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || uploadingImage}
                 style={{ 
                   width: '100%',
                   padding: '14px',
@@ -601,20 +771,19 @@ export default function Home() {
                   fontSize: '16px',
                   fontWeight: '600',
                   borderRadius: '8px',
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting ? 0.7 : 1,
-                  transition: 'all 0.2s'
+                  cursor: (isSubmitting || uploadingImage) ? 'not-allowed' : 'pointer',
+                  opacity: (isSubmitting || uploadingImage) ? 0.7 : 1
                 }}
               >
-                {isSubmitting ? (
+                {isSubmitting || uploadingImage ? (
                   <span>
                     <i className="fas fa-spinner fa-spin me-2"></i>
-                    Menyimpan...
+                    {uploadingImage ? 'Uploading...' : 'Saving...'}
                   </span>
                 ) : (
                   <span>
                     <i className="fas fa-paper-plane me-2"></i>
-                    SUBMIT PROBLEM
+                    SUBMIT BNF RECORD
                   </span>
                 )}
               </button>
@@ -630,9 +799,9 @@ export default function Home() {
           marginTop: '20px'
         }}>
           <i className="fas fa-heart me-1" style={{ color: '#8b3a3a' }}></i>
-          BNF Material Control - Problem Resolution System
+          BNF Material Control - Follow Up System
         </p>
-      </div>git
+      </div>
     </main>
   );
 }

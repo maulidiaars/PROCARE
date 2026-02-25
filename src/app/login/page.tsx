@@ -1,3 +1,4 @@
+// src/app/login/page.tsx (Login Page - English)
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -28,7 +29,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // CEK USER DARI DATABASE DOANG (GA PAKE HARDCODE)
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
@@ -37,7 +37,7 @@ export default function LoginPage() {
         .single();
 
       if (error || !user) {
-        throw new Error('NPK atau password salah');
+        throw new Error('Invalid NPK or password');
       }
 
       const userData = {
@@ -66,8 +66,8 @@ export default function LoginPage() {
     } catch (error) {
       Swal.fire({
         icon: 'error',
-        title: 'Login Gagal',
-        text: error instanceof Error ? error.message : 'NPK atau password salah',
+        title: 'Login Failed',
+        text: error instanceof Error ? error.message : 'Invalid NPK or password',
         background: '#1a1a1a',
         color: 'white',
         confirmButtonColor: '#8b3a3a'
@@ -99,7 +99,7 @@ export default function LoginPage() {
       justifyContent: 'center',
       padding: '16px'
     }}>
-      {/* MODAL POPUP - TETEP KEREN */}
+      {/* MODAL POPUP */}
       {showModal && currentUser && (
         <div style={{
           position: 'fixed',
@@ -193,7 +193,7 @@ export default function LoginPage() {
                 onMouseLeave={(e) => e.currentTarget.style.background = '#8b3a3a'}
               >
                 <i className="fas fa-pen-alt"></i>
-                Google Form
+                BNF Form
               </button>
               
               <button
@@ -265,13 +265,13 @@ export default function LoginPage() {
               onMouseLeave={(e) => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#404040'; }}
             >
               <i className="fas fa-sign-out-alt me-2"></i>
-              Ganti Akun
+              Switch Account
             </button>
           </div>
         </div>
       )}
 
-      {/* LOGIN CARD - DIPENDEKIN */}
+      {/* LOGIN CARD */}
       <div style={{
         maxWidth: '360px',
         width: '100%'
@@ -297,7 +297,7 @@ export default function LoginPage() {
             fontSize: '28px',
             color: 'white'
           }}>
-            <i className="fas fa-heartbeat"></i>
+            <i className="fas fa-clipboard-list"></i>
           </div>
           <h1 style={{
             fontSize: '22px',
@@ -308,11 +308,11 @@ export default function LoginPage() {
             BNF MATERIAL
           </h1>
           <p style={{ color: '#888', fontSize: '12px', margin: 0 }}>
-            Problem Resolution System
+            Follow Up System
           </p>
         </div>
 
-        {/* Form Login */}
+        {/* Login Form */}
         <div style={{
           background: '#121212',
           border: '1px solid #2a2a2a',
@@ -331,7 +331,7 @@ export default function LoginPage() {
                 onChange={(e) => setNpk(e.target.value)}
                 required
                 autoComplete="off"
-                placeholder="Masukkan NPK"
+                placeholder="Enter NPK"
                 style={{
                   width: '100%',
                   background: '#1e1e1e',

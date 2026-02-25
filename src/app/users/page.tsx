@@ -1,3 +1,4 @@
+// src/app/users/page.tsx (User Management - English)
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -41,8 +42,8 @@ export default function UsersPage() {
     if (user.role !== 'master') {
       Swal.fire({
         icon: 'error',
-        title: 'Akses Ditolak',
-        text: 'Hanya Master yang bisa mengakses halaman ini!',
+        title: 'Access Denied',
+        text: 'Only Master can access this page!',
         background: '#1a1a1a',
         color: 'white'
       }).then(() => {
@@ -76,8 +77,8 @@ export default function UsersPage() {
     if (!npk || !name || !password) {
       Swal.fire({
         icon: 'warning',
-        title: 'Peringatan',
-        text: 'Semua field harus diisi!',
+        title: 'Warning',
+        text: 'All fields are required!',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -91,8 +92,8 @@ export default function UsersPage() {
     if (isDuplicate) {
       Swal.fire({
         icon: 'error',
-        title: 'NPK sudah ada!',
-        text: 'NPK ini sudah terdaftar',
+        title: 'NPK already exists!',
+        text: 'This NPK is already registered',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -110,8 +111,8 @@ export default function UsersPage() {
 
         Swal.fire({
           icon: 'success',
-          title: 'Berhasil!',
-          text: 'User berhasil diupdate',
+          title: 'Success!',
+          text: 'User updated successfully',
           timer: 1500,
           showConfirmButton: false,
           background: '#1a1a1a',
@@ -126,8 +127,8 @@ export default function UsersPage() {
 
         Swal.fire({
           icon: 'success',
-          title: 'Berhasil!',
-          text: 'User baru berhasil ditambahkan',
+          title: 'Success!',
+          text: 'New user added successfully',
           timer: 1500,
           showConfirmButton: false,
           background: '#1a1a1a',
@@ -147,8 +148,8 @@ export default function UsersPage() {
       console.error('Error save user:', error);
       Swal.fire({
         icon: 'error',
-        title: 'Gagal!',
-        text: 'Terjadi kesalahan',
+        title: 'Failed!',
+        text: 'An error occurred',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -165,13 +166,13 @@ export default function UsersPage() {
 
   const handleDelete = async (id: number) => {
     const result = await Swal.fire({
-      title: 'Yakin hapus?',
-      text: 'User akan dihapus permanen!',
+      title: 'Confirm Delete?',
+      text: 'User will be permanently deleted!',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
-      confirmButtonText: 'Ya, Hapus!',
+      confirmButtonText: 'Yes, Delete!',
       background: '#1a1a1a',
       color: 'white'
     });
@@ -187,8 +188,8 @@ export default function UsersPage() {
 
         Swal.fire({
           icon: 'success',
-          title: 'Terhapus!',
-          text: 'User berhasil dihapus',
+          title: 'Deleted!',
+          text: 'User has been deleted',
           timer: 1500,
           showConfirmButton: false,
           background: '#1a1a1a',
@@ -200,8 +201,8 @@ export default function UsersPage() {
       } catch (error) {
         Swal.fire({
           icon: 'error',
-          title: 'Gagal!',
-          text: 'Terjadi kesalahan',
+          title: 'Failed!',
+          text: 'An error occurred',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -211,7 +212,7 @@ export default function UsersPage() {
 
   const handleLogout = () => {
     Swal.fire({
-      title: 'Yakin logout?',
+      title: 'Confirm Logout?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
@@ -308,11 +309,11 @@ export default function UsersPage() {
             }}
           >
             <i className={`fas ${showForm ? 'fa-times' : 'fa-plus'} me-2`}></i>
-            {showForm ? 'Tutup Form' : 'Tambah User'}
+            {showForm ? 'Close Form' : 'Add User'}
           </button>
         </div>
 
-        {/* FORM TAMBAH/EDIT USER */}
+        {/* ADD/EDIT FORM */}
         {showForm && (
           <div style={{
             background: '#1a1a1a',
@@ -322,7 +323,7 @@ export default function UsersPage() {
             marginBottom: '20px'
           }}>
             <h3 style={{ color: 'white', marginBottom: '16px' }}>
-              {editingId ? 'Edit User' : 'Tambah User Baru'}
+              {editingId ? 'Edit User' : 'Add New User'}
             </h3>
             
             <form onSubmit={handleSubmit}>
@@ -349,7 +350,7 @@ export default function UsersPage() {
                 
                 <div>
                   <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '4px', display: 'block' }}>
-                    Nama <span style={{ color: '#dc3545' }}>*</span>
+                    Name <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -404,7 +405,7 @@ export default function UsersPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  Batal
+                  Cancel
                 </button>
                 
                 <button
@@ -418,14 +419,14 @@ export default function UsersPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  {editingId ? 'Update' : 'Simpan'}
+                  {editingId ? 'Update' : 'Save'}
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* TABLE USERS */}
+        {/* USERS TABLE */}
         <div style={{
           background: '#1a1a1a',
           border: '1px solid #333',
@@ -435,7 +436,7 @@ export default function UsersPage() {
         }}>
           <h3 style={{ color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <i className="fas fa-users" style={{ color: '#8b3a3a' }}></i>
-            Daftar Staff ({users.filter(u => u.role === 'staff').length})
+            Staff List ({users.filter(u => u.role === 'staff').length})
           </h3>
 
           <div style={{ overflowX: 'auto' }}>
@@ -478,7 +479,7 @@ export default function UsersPage() {
                     fontSize: '13px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
-                  }}>Nama</th>
+                  }}>Name</th>
                   <th style={{ 
                     padding: '14px 12px', 
                     textAlign: 'left', 
@@ -508,7 +509,7 @@ export default function UsersPage() {
                     fontSize: '13px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
-                  }}>Aksi</th>
+                  }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -607,7 +608,7 @@ export default function UsersPage() {
                             }}
                           >
                             <i className="fas fa-trash"></i>
-                            Hapus
+                            Delete
                           </button>
                         </div>
                       )}
@@ -624,7 +625,7 @@ export default function UsersPage() {
                       border: '1px solid #333'
                     }}>
                       <i className="fas fa-users" style={{ fontSize: '48px', marginBottom: '16px', color: '#8b3a3a' }}></i>
-                      <p>Belum ada user</p>
+                      <p>No users found</p>
                     </td>
                   </tr>
                 )}

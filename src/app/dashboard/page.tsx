@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx (Dashboard)
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -24,18 +25,20 @@ declare global {
   }
 }
 
-type Problem = {
+type BNFItem = {
   id: number;
   denso_pn: string;
+  plan: string;
   part_name: string | null;
   local_import: string;
   supplier_name: string | null;
-  problem: string;
+  description: string;
   timing_date_time: string;
   action: string | null;
   due_date_max: string;
   pic: string | null;
   note_remark: string | null;
+  images: string | null;
   created_at: string;
   status: string;
 };
@@ -43,8 +46,8 @@ type Problem = {
 export default function Dashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [filteredProblems, setFilteredProblems] = useState<Problem[]>([]);
+  const [bnfItems, setBnfItems] = useState<BNFItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<BNFItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
 
@@ -59,18 +62,24 @@ export default function Dashboard() {
   // Filter
   const [statusFilter, setStatusFilter] = useState('all');
   const [picFilter, setPicFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState('all');
   const [picOptions, setPicOptions] = useState<string[]>([]);
+  const [planOptions, setPlanOptions] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
 
   // Edit Modal
-  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<BNFItem | null>(null);
   const [editAction, setEditAction] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editPic, setEditPic] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const modalRef = useRef<any>(null);
+
+  // Image Modal
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const imageModalRef = useRef<any>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,10 +88,10 @@ export default function Dashboard() {
   // MODAL SELECTOR
   const [showSelector, setShowSelector] = useState(false);
 
-  // ========== DATA UNTUK GRAFIK ==========
+  // DATA FOR CHART
   const [chartData, setChartData] = useState<any[]>([]);
 
-  // ========== CEK LOGIN ==========
+  // CHECK LOGIN
   useEffect(() => {
     const userData = localStorage.getItem('currentUser');
     if (!userData) {
@@ -103,14 +112,19 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [router]);
 
-  // ========== SETUP MODAL ==========
+  // SETUP MODALS
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const timer = setTimeout(() => {
-        if (window.bootstrap && !modalRef.current) {
+        if (window.bootstrap) {
           const modalElement = document.getElementById('updateModal');
-          if (modalElement) {
+          if (modalElement && !modalRef.current) {
             modalRef.current = new window.bootstrap.Modal(modalElement);
+          }
+          
+          const imageModalElement = document.getElementById('imageModal');
+          if (imageModalElement && !imageModalRef.current) {
+            imageModalRef.current = new window.bootstrap.Modal(imageModalElement);
           }
         }
       }, 500);
@@ -119,19 +133,19 @@ export default function Dashboard() {
     }
   }, []);
 
-  // ========== FILTER EFFECTS ==========
+  // FILTER EFFECTS
   useEffect(() => {
     applyFilters();
-  }, [problems, statusFilter, picFilter, dueFilter, searchText]);
+  }, [bnfItems, statusFilter, picFilter, planFilter, dueFilter, searchText]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, picFilter, dueFilter, searchText]);
+  }, [statusFilter, picFilter, planFilter, dueFilter, searchText]);
 
-  // ========== LOGOUT ==========
+  // LOGOUT
   const handleLogout = () => {
     Swal.fire({
-      title: 'Yakin logout?',
+      title: 'Confirm Logout?',
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
@@ -147,7 +161,7 @@ export default function Dashboard() {
     });
   };
 
-  // ========== FUNGSI CEK DAN RESET BULANAN ==========
+  // MONTHLY RESET
   async function checkAndResetMonthly() {
     try {
       const today = new Date();
@@ -165,11 +179,11 @@ export default function Dashboard() {
           html: `
             <div style="text-align: center">
               <i class="fas fa-calendar-alt" style="font-size: 48px; color: #8b3a3a; margin-bottom: 16px;"></i>
-              <p style="font-size: 16px; margin-bottom: 8px;">Hari ini tanggal 1!</p>
-              <p style="color: #aaa; font-size: 14px;">Data dengan status CLOSED akan dihapus.</p>
+              <p style="font-size: 16px; margin-bottom: 8px;">Today is the 1st!</p>
+              <p style="color: #aaa; font-size: 14px;">Records with CLOSED status will be deleted.</p>
               <p style="color: #28a745; font-size: 13px; margin-top: 12px;">
                 <i class="fas fa-info-circle me-1"></i>
-                Data OPEN & IN PROGRESS tetap disimpan.
+                OPEN & IN PROGRESS records are kept.
               </p>
             </div>
           `,
@@ -177,8 +191,8 @@ export default function Dashboard() {
           showCancelButton: true,
           confirmButtonColor: '#8b3a3a',
           cancelButtonColor: '#2a2a2a',
-          confirmButtonText: 'Ya, Bersihkan',
-          cancelButtonText: 'Nanti',
+          confirmButtonText: 'Yes, Clean Up',
+          cancelButtonText: 'Later',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -189,8 +203,8 @@ export default function Dashboard() {
           
           Swal.fire({
             icon: 'success',
-            title: '✅ Cleanup Berhasil',
-            text: 'Data CLOSED telah dihapus. Data aktif tetap aman!',
+            title: '✅ Cleanup Successful',
+            text: 'CLOSED records have been deleted. Active records are safe!',
             timer: 3000,
             showConfirmButton: false,
             background: '#1a1a1a',
@@ -224,8 +238,8 @@ export default function Dashboard() {
       console.error('Error reset data:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Gagal',
-        text: 'Terjadi kesalahan saat cleanup',
+        title: '❌ Failed',
+        text: 'An error occurred during cleanup',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -234,7 +248,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== FETCH DATA ==========
+  // FETCH DATA
   async function fetchData(silent = false) {
     if (!silent) setLoading(true);
 
@@ -251,9 +265,9 @@ export default function Dashboard() {
         status: item.status || 'Open'
       }));
 
-      setProblems(dataWithStatus);
-      setFilteredProblems(dataWithStatus);
-      setLastUpdate(new Date().toLocaleString('id-ID'));
+      setBnfItems(dataWithStatus);
+      setFilteredItems(dataWithStatus);
+      setLastUpdate(new Date().toLocaleString('en-US'));
 
       const open = dataWithStatus.filter(p => p.status === 'Open').length;
       const progress = dataWithStatus.filter(p => p.status === 'In Progress').length;
@@ -266,13 +280,13 @@ export default function Dashboard() {
         closed
       });
 
-      // ========== UPDATE DATA GRAFIK ==========
+      // UPDATE CHART DATA
       const last7Days = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         
-        const dayStr = date.toLocaleDateString('id-ID', { 
+        const dayStr = date.toLocaleDateString('en-US', { 
           weekday: 'short',
           day: 'numeric',
           month: 'short'
@@ -301,6 +315,9 @@ export default function Dashboard() {
       const pics = [...new Set(dataWithStatus.map(p => p.pic).filter(p => p && p !== '-'))] as string[];
       setPicOptions(pics);
 
+      const plans = [...new Set(dataWithStatus.map(p => p.plan).filter(p => p))] as string[];
+      setPlanOptions(plans);
+
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -308,9 +325,9 @@ export default function Dashboard() {
     }
   }
 
-  // ========== APPLY FILTERS ==========
+  // APPLY FILTERS
   function applyFilters() {
-    let filtered = [...problems];
+    let filtered = [...bnfItems];
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === statusFilter);
@@ -318,6 +335,10 @@ export default function Dashboard() {
 
     if (picFilter !== 'all') {
       filtered = filtered.filter(p => p.pic === picFilter);
+    }
+
+    if (planFilter !== 'all') {
+      filtered = filtered.filter(p => p.plan === planFilter);
     }
 
     if (dueFilter !== 'all') {
@@ -344,23 +365,24 @@ export default function Dashboard() {
       const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(p => 
         p.denso_pn.toLowerCase().includes(searchLower) ||
+        (p.plan && p.plan.toLowerCase().includes(searchLower)) ||
         (p.part_name && p.part_name.toLowerCase().includes(searchLower)) ||
         (p.supplier_name && p.supplier_name.toLowerCase().includes(searchLower)) ||
-        p.problem.toLowerCase().includes(searchLower) ||
+        p.description.toLowerCase().includes(searchLower) ||
         (p.pic && p.pic.toLowerCase().includes(searchLower))
       );
     }
 
-    setFilteredProblems(filtered);
+    setFilteredItems(filtered);
   }
 
-  // ========== PAGINATION ==========
-  const totalPages = Math.ceil(filteredProblems.length / itemsPerPage);
+  // PAGINATION
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredProblems.slice(startIndex, endIndex);
+  const currentItems = filteredItems.slice(startIndex, endIndex);
 
-  // ========== DUE DATE CLASS ==========
+  // DUE DATE CLASS
   function getDueDateClass(dueDate: string) {
     if (!dueDate) return '';
     
@@ -377,12 +399,12 @@ export default function Dashboard() {
     return '';
   }
 
-  // ========== FORMAT DATE/TIME ==========
+  // FORMAT DATE/TIME
   function formatDateOnly(dateStr: string) {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('id-ID', {
+      return date.toLocaleDateString('en-US', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
@@ -396,9 +418,10 @@ export default function Dashboard() {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleTimeString('id-ID', {
+      return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        hour12: false
       });
     } catch {
       return '-';
@@ -409,27 +432,64 @@ export default function Dashboard() {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('id-ID');
+      return date.toLocaleDateString('en-US');
     } catch {
       return '-';
     }
   }
 
-  // ========== STATUS VALIDATION ==========
+  // STATUS VALIDATION - ONLY MASTER CAN CLOSE
   function canUpdate(currentStatus: string, newStatus: string): boolean {
     if (currentStatus === 'Closed') return false;
+    
+    // Only master can change status to Closed
+    if (newStatus === 'Closed' && currentUser?.role !== 'master') {
+      return false;
+    }
+    
     if (currentStatus === 'In Progress') return newStatus === 'Closed';
     if (currentStatus === 'Open') return newStatus === 'In Progress' || newStatus === 'Closed';
     return false;
   }
 
-  // ========== EDIT MODAL ==========
-  function openEditModal(problem: Problem) {
-    setSelectedProblem(problem);
-    setEditAction(problem.action || '');
+  // CHECK IF USER CAN EDIT
+  function canEdit(item: BNFItem): boolean {
+    if (item.status === 'Closed') return false;
+    return true;
+  }
+
+  // CHECK IF USER CAN DELETE
+  function canDelete(item: BNFItem): boolean {
+    if (item.status === 'Closed') return false;
+    return true;
+  }
+
+  // OPEN IMAGE MODAL
+  function openImageModal(imageUrl: string) {
+    setSelectedImage(imageUrl);
+    if (imageModalRef.current) {
+      imageModalRef.current.show();
+    }
+  }
+
+  // EDIT MODAL
+  function openEditModal(item: BNFItem) {
+    if (!canEdit(item)) {
+      Swal.fire({
+        icon: 'error',
+        title: '❌ Cannot Edit',
+        text: 'CLOSED records cannot be modified!',
+        background: '#1a1a1a',
+        color: 'white'
+      });
+      return;
+    }
+
+    setSelectedItem(item);
+    setEditAction(item.action || '');
     
-    if (problem.due_date_max) {
-      const date = new Date(problem.due_date_max);
+    if (item.due_date_max) {
+      const date = new Date(item.due_date_max);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -438,9 +498,9 @@ export default function Dashboard() {
       setEditDueDate('');
     }
     
-    setEditPic(problem.pic || '');
-    setEditNote(problem.note_remark || '');
-    setEditStatus(problem.status || 'Open');
+    setEditPic(item.pic || '');
+    setEditNote(item.note_remark || '');
+    setEditStatus(item.status || 'Open');
     
     if (modalRef.current) {
       modalRef.current.show();
@@ -448,32 +508,34 @@ export default function Dashboard() {
   }
 
   async function saveUpdate() {
-    if (!selectedProblem) return;
+    if (!selectedItem) return;
     
     if (!editAction || !editDueDate || !editPic || !editStatus) {
       Swal.fire({
         icon: 'warning',
-        title: 'Peringatan',
-        text: 'Field Action, Due Date, PIC, dan Status wajib diisi!',
+        title: 'Warning',
+        text: 'Action, Due Date, PIC, and Status are required!',
         background: '#1a1a1a',
         color: 'white'
       });
       return;
     }
 
-    if (!canUpdate(selectedProblem.status, editStatus)) {
+    if (!canUpdate(selectedItem.status, editStatus)) {
       let message = '';
-      if (selectedProblem.status === 'Closed') {
-        message = 'Data dengan status CLOSED tidak dapat diubah lagi!';
-      } else if (selectedProblem.status === 'In Progress' && editStatus !== 'Closed') {
-        message = 'Status IN PROGRESS hanya bisa diubah menjadi CLOSED!';
+      if (selectedItem.status === 'Closed') {
+        message = 'CLOSED records cannot be modified!';
+      } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
+        message = 'IN PROGRESS status can only be changed to CLOSED!';
+      } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
+        message = 'Only MASTER users can change status to CLOSED!';
       } else {
-        message = 'Perubahan status tidak diijinkan!';
+        message = 'Status change not allowed!';
       }
       
       Swal.fire({
         icon: 'error',
-        title: '❌ Tidak Diijinkan',
+        title: '❌ Not Allowed',
         text: message,
         background: '#1a1a1a',
         color: 'white'
@@ -491,14 +553,14 @@ export default function Dashboard() {
           note_remark: editNote || null,
           status: editStatus
         })
-        .eq('id', selectedProblem.id);
+        .eq('id', selectedItem.id);
 
       if (error) throw error;
       
       await Swal.fire({
         icon: 'success',
-        title: '✅ Berhasil!',
-        text: 'Data berhasil diupdate',
+        title: '✅ Success!',
+        text: 'Record updated successfully',
         timer: 1500,
         showConfirmButton: false,
         background: '#1a1a1a',
@@ -509,7 +571,7 @@ export default function Dashboard() {
         modalRef.current.hide();
       }
       
-      setSelectedProblem(null);
+      setSelectedItem(null);
       await fetchData();
 
     } catch (error) {
@@ -517,22 +579,22 @@ export default function Dashboard() {
       
       Swal.fire({
         icon: 'error',
-        title: '❌ Gagal Update',
-        text: 'Terjadi kesalahan',
+        title: '❌ Update Failed',
+        text: 'An error occurred',
         background: '#1a1a1a',
         color: 'white'
       });
     }
   }
 
-  async function deleteProblem(id: number) {
-    const problem = problems.find(p => p.id === id);
+  async function deleteItem(id: number) {
+    const item = bnfItems.find(p => p.id === id);
     
-    if (problem?.status === 'Closed') {
+    if (item?.status === 'Closed') {
       Swal.fire({
         icon: 'error',
-        title: '❌ Tidak Bisa Hapus',
-        text: 'Data dengan status CLOSED tidak dapat dihapus!',
+        title: '❌ Cannot Delete',
+        text: 'CLOSED records cannot be deleted!',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -540,14 +602,14 @@ export default function Dashboard() {
     }
 
     const result = await Swal.fire({
-      title: 'Yakin mau hapus?',
-      text: 'Data yang dihapus tidak bisa dikembalikan!',
+      title: 'Delete Confirmation',
+      text: 'This record will be permanently deleted!',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
-      confirmButtonText: 'Ya, Hapus!',
-      cancelButtonText: 'Batal',
+      confirmButtonText: 'Yes, Delete!',
+      cancelButtonText: 'Cancel',
       background: '#1a1a1a',
       color: 'white'
     });
@@ -563,8 +625,8 @@ export default function Dashboard() {
 
         Swal.fire({
           icon: 'success',
-          title: 'Terhapus!',
-          text: 'Data berhasil dihapus',
+          title: 'Deleted!',
+          text: 'Record has been deleted',
           timer: 1500,
           showConfirmButton: false,
           background: '#1a1a1a',
@@ -577,7 +639,7 @@ export default function Dashboard() {
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Gagal menghapus data',
+          text: 'Failed to delete record',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -585,23 +647,23 @@ export default function Dashboard() {
     }
   }
 
-  // ========== DOWNLOAD EXCEL DENGAN PILIHAN ==========
+  // DOWNLOAD EXCEL
   async function downloadExcel() {
     const result = await Swal.fire({
       title: '📊 Download Excel',
       html: `
         <div style="text-align: left">
-          <p style="color: #fff; margin-bottom: 16px;">Pilih periode data:</p>
+          <p style="color: #fff; margin-bottom: 16px;">Select data period:</p>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="all" checked style="cursor: pointer;"> 
               <i class="fas fa-database" style="color: #8b3a3a;"></i>
-              Semua Data (${filteredProblems.length} records)
+              All Records (${filteredItems.length} records)
             </label>
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="month" style="cursor: pointer;"> 
               <i class="fas fa-calendar-alt" style="color: #28a745;"></i>
-              Per Bulan Ini
+              This Month Only
             </label>
           </div>
         </div>
@@ -610,7 +672,7 @@ export default function Dashboard() {
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
       confirmButtonText: 'Download',
-      cancelButtonText: 'Batal',
+      cancelButtonText: 'Cancel',
       background: '#1a1a1a',
       color: 'white',
       preConfirm: () => {
@@ -622,14 +684,14 @@ export default function Dashboard() {
     if (!result.isConfirmed) return;
 
     const period = result.value;
-    let dataToDownload = [...filteredProblems];
+    let dataToDownload = [...filteredItems];
 
     if (period === 'month') {
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
       
-      dataToDownload = filteredProblems.filter(item => {
+      dataToDownload = filteredItems.filter(item => {
         const itemDate = new Date(item.created_at);
         return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
       });
@@ -637,8 +699,8 @@ export default function Dashboard() {
       if (dataToDownload.length === 0) {
         Swal.fire({
           icon: 'info',
-          title: 'Tidak Ada Data',
-          text: 'Tidak ada data untuk bulan ini',
+          title: 'No Data',
+          text: 'No records for this month',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -651,9 +713,9 @@ export default function Dashboard() {
       
       const title = `PT. DENSO INDONESIA - BNF MATERIAL CONTROL`;
       const periode = period === 'month' 
-        ? `Periode: ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
-        : `Periode: Semua Data`;
-      const dateGenerated = `Generated: ${new Date().toLocaleString('id-ID')}`;
+        ? `Period: ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+        : `Period: All Records`;
+      const dateGenerated = `Generated: ${new Date().toLocaleString('en-US')}`;
       const totalData = `Total Records: ${dataToDownload.length}`;
       
       const wsData = [
@@ -662,24 +724,26 @@ export default function Dashboard() {
         [dateGenerated],
         [totalData],
         [],
-        ['NO', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER NAME', 'PROBLEM', 
-         'Issued Timing', 'TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE/REMARK', 'STATUS']
+        ['NO', 'PLAN', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER', 'DESCRIPTION', 
+         'ISSUED DATE', 'TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE', 'IMAGES', 'STATUS']
       ];
       
       dataToDownload.forEach((item, index) => {
         wsData.push([
           String(index + 1),
+          String(item.plan || '-'),
           String(item.denso_pn),
           String(item.part_name || '-'),
           String(item.local_import),
           String(item.supplier_name || '-'),
-          String(item.problem),
+          String(item.description),
           formatDateOnly(item.timing_date_time),
           formatTimeOnly(item.timing_date_time),
           String(item.action || '-'),
           formatDateOnly(item.due_date_max),
           String(item.pic || '-'),
           String(item.note_remark || '-'),
+          String(item.images || '-'),
           String(item.status || 'Open')
         ]);
       });
@@ -687,16 +751,16 @@ export default function Dashboard() {
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       
       ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
-        { s: { r: 2, c: 0 }, e: { r: 2, c: 12 } },
-        { s: { r: 3, c: 0 }, e: { r: 3, c: 12 } }
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 14 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 14 } }
       ];
       
       ws['!cols'] = [
-        { wch: 5 }, { wch: 15 }, { wch: 25 }, { wch: 8 }, { wch: 30 },
-        { wch: 50 }, { wch: 12 }, { wch: 10 }, { wch: 50 }, { wch: 12 },
-        { wch: 20 }, { wch: 40 }, { wch: 12 }
+        { wch: 5 }, { wch: 8 }, { wch: 15 }, { wch: 25 }, { wch: 8 },
+        { wch: 30 }, { wch: 50 }, { wch: 12 }, { wch: 8 }, { wch: 50 },
+        { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 12 }
       ];
       
       XLSX.utils.book_append_sheet(wb, ws, 'BNF Data');
@@ -710,11 +774,11 @@ export default function Dashboard() {
       
       Swal.fire({
         icon: 'success',
-        title: '✅ Excel Berhasil',
+        title: '✅ Excel Success',
         html: `
           <div style="text-align: left">
             <p><i class="fas fa-file-excel me-2" style="color: #28a745;"></i> File: ${fileName}</p>
-            <p><i class="fas fa-database me-2" style="color: #8b3a3a;"></i> Data: ${dataToDownload.length} records</p>
+            <p><i class="fas fa-database me-2" style="color: #8b3a3a;"></i> Records: ${dataToDownload.length}</p>
             <p><i class="fas fa-calendar me-2" style="color: #17a2b8;"></i> ${periode}</p>
           </div>
         `,
@@ -727,31 +791,31 @@ export default function Dashboard() {
       console.error('Excel error:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Gagal',
-        text: 'Terjadi kesalahan saat download Excel',
+        title: '❌ Failed',
+        text: 'An error occurred while downloading Excel',
         background: '#1a1a1a',
         color: 'white'
       });
     }
   }
 
-  // ========== DOWNLOAD PDF DENGAN PILIHAN ==========
+  // DOWNLOAD PDF
   async function downloadPDF() {
     const result = await Swal.fire({
       title: '📄 Download PDF',
       html: `
         <div style="text-align: left">
-          <p style="color: #fff; margin-bottom: 16px;">Pilih periode data:</p>
+          <p style="color: #fff; margin-bottom: 16px;">Select data period:</p>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="all" checked style="cursor: pointer;"> 
               <i class="fas fa-database" style="color: #8b3a3a;"></i>
-              Semua Data (${filteredProblems.length} records)
+              All Records (${filteredItems.length} records)
             </label>
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="month" style="cursor: pointer;"> 
               <i class="fas fa-calendar-alt" style="color: #28a745;"></i>
-              Per Bulan Ini
+              This Month Only
             </label>
           </div>
         </div>
@@ -760,7 +824,7 @@ export default function Dashboard() {
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
       confirmButtonText: 'Download',
-      cancelButtonText: 'Batal',
+      cancelButtonText: 'Cancel',
       background: '#1a1a1a',
       color: 'white',
       preConfirm: () => {
@@ -772,14 +836,14 @@ export default function Dashboard() {
     if (!result.isConfirmed) return;
 
     const period = result.value;
-    let dataToDownload = [...filteredProblems];
+    let dataToDownload = [...filteredItems];
 
     if (period === 'month') {
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
       
-      dataToDownload = filteredProblems.filter(item => {
+      dataToDownload = filteredItems.filter(item => {
         const itemDate = new Date(item.created_at);
         return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
       });
@@ -787,8 +851,8 @@ export default function Dashboard() {
       if (dataToDownload.length === 0) {
         Swal.fire({
           icon: 'info',
-          title: 'Tidak Ada Data',
-          text: 'Tidak ada data untuk bulan ini',
+          title: 'No Data',
+          text: 'No records for this month',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -813,16 +877,16 @@ export default function Dashboard() {
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80);
       doc.setFont('helvetica', 'normal');
-      doc.text('BNF Material Control - Problem Resolution', 15, 18);
+      doc.text('BNF Material Control - Follow Up System', 15, 18);
       
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
       
       const today = new Date();
       const periode = period === 'month'
-        ? `Periode: ${today.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
-        : `Periode: Semua Data`;
-      const generated = `Generated: ${today.toLocaleDateString('id-ID')} ${today.toLocaleTimeString('id-ID')}`;
+        ? `Period: ${today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+        : `Period: All Records`;
+      const generated = `Generated: ${today.toLocaleDateString('en-US')} ${today.toLocaleTimeString('en-US')}`;
       const totalData = `Total Records: ${dataToDownload.length}`;
       
       doc.text(periode, 15, 24);
@@ -834,23 +898,25 @@ export default function Dashboard() {
       doc.line(15, 35, 280, 35);
       
       const tableColumn = [
-        'No', 'DENSO PN', 'Part Name', 'L/I', 'Supplier', 'Problem',
-        'Issued Timing', 'Time', 'Action', 'Due Date', 'PIC', 'Note', 'Status'
+        'No', 'PLAN', 'DENSO PN', 'Part Name', 'L/I', 'Supplier', 'Description',
+        'Issued Date', 'Time', 'Action', 'Due Date', 'PIC', 'Note', 'Images', 'Status'
       ];
       
       const tableRows = dataToDownload.map((item, index) => [
         index + 1,
+        item.plan || '-',
         item.denso_pn,
         item.part_name || '-',
         item.local_import,
         item.supplier_name || '-',
-        item.problem,
+        item.description,
         formatDateOnly(item.timing_date_time),
         formatTimeOnly(item.timing_date_time),
         item.action || '-',
         formatDateOnly(item.due_date_max),
         item.pic || '-',
         item.note_remark || '-',
+        item.images ? 'View' : '-',
         item.status
       ]);
       
@@ -858,9 +924,26 @@ export default function Dashboard() {
         head: [tableColumn],
         body: tableRows,
         startY: 38,
-        styles: { fontSize: 7, cellPadding: 2 },
-        headStyles: { fillColor: maroon, textColor: 255, fontSize: 8, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 245, 245] }
+        styles: { fontSize: 6, cellPadding: 1.5 },
+        headStyles: { fillColor: maroon, textColor: 255, fontSize: 7, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          1: { cellWidth: 15 },
+          2: { cellWidth: 18 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 10 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 40 },
+          7: { cellWidth: 15 },
+          8: { cellWidth: 10 },
+          9: { cellWidth: 30 },
+          10: { cellWidth: 15 },
+          11: { cellWidth: 15 },
+          12: { cellWidth: 25 },
+          13: { cellWidth: 12 },
+          14: { cellWidth: 15 }
+        }
       });
       
       const month = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -872,7 +955,7 @@ export default function Dashboard() {
       
       Swal.fire({
         icon: 'success',
-        title: '✅ PDF Berhasil',
+        title: '✅ PDF Success',
         html: `<p><i class="fas fa-file-pdf" style="color: #dc3545;"></i> File: ${fileName}</p>`,
         timer: 2000,
         showConfirmButton: false,
@@ -884,15 +967,15 @@ export default function Dashboard() {
       console.error('PDF error:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Gagal',
-        text: 'Terjadi kesalahan saat download PDF',
+        title: '❌ Failed',
+        text: 'An error occurred while downloading PDF',
         background: '#1a1a1a',
         color: 'white'
       });
     }
   }
 
-  // ========== LOADING ==========
+  // LOADING
   if (loading) {
     return (
       <div style={{ 
@@ -912,7 +995,7 @@ export default function Dashboard() {
     );
   }
 
-  // ========== RENDER ==========
+  // RENDER
   return (
     <div style={{ background: '#000000', minHeight: '100vh', padding: '16px' }}>
       <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
@@ -1012,7 +1095,7 @@ export default function Dashboard() {
                   onMouseLeave={(e) => e.currentTarget.style.background = '#8b3a3a'}
                 >
                   <i className="fas fa-pen-alt"></i>
-                  Google Form
+                  BNF Form
                 </button>
                 
                 <button
@@ -1087,7 +1170,7 @@ export default function Dashboard() {
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#404040'; }}
               >
                 <i className="fas fa-sign-out-alt me-2"></i>
-                Ganti Akun
+                Switch Account
               </button>
             </div>
           </div>
@@ -1118,11 +1201,11 @@ export default function Dashboard() {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                <i className="fas fa-heartbeat" style={{ color: '#ffa5a5' }}></i>
-                DASHBOARD MONITORING
+                <i className="fas fa-clipboard-list" style={{ color: '#ffa5a5' }}></i>
+                BNF DASHBOARD
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0 }}>
-                <i className="far fa-clock me-1"></i>Update: {lastUpdate || '-'}
+                <i className="far fa-clock me-1"></i>Last Update: {lastUpdate || '-'}
                 <span style={{ marginLeft: '16px' }}>
                   <i className="fas fa-user me-1"></i>
                   {currentUser?.name} ({currentUser?.role})
@@ -1171,7 +1254,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* GRAFIK + STATS SECTION - UDAH DIPERBAIKI */}
+        {/* CHART + STATS SECTION */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '2fr 1fr',
@@ -1179,7 +1262,7 @@ export default function Dashboard() {
           marginBottom: '20px'
         }}>
           
-          {/* KIRI: GRAFIK (TOOLTIP DIHAPUS) */}
+          {/* LEFT: CHART */}
           <div style={{
             background: '#1a1a1a',
             borderRadius: '16px',
@@ -1202,11 +1285,11 @@ export default function Dashboard() {
                   gap: '8px'
                 }}>
                   <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                  Performance Trend 7 Hari
+                  7-Day Performance Trend
                 </h4>
                 <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
                   <i className="far fa-calendar-alt me-1"></i>
-                  {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                  {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </p>
               </div>
             </div>
@@ -1226,7 +1309,6 @@ export default function Dashboard() {
                     tick={{ fill: '#aaa', fontSize: 11 }}
                     axisLine={{ stroke: '#404040' }}
                   />
-                  {/* TOOLTIP DIHAPUS TOTAL */}
                   <Legend 
                     wrapperStyle={{ 
                       color: 'white', 
@@ -1262,238 +1344,226 @@ export default function Dashboard() {
             </div>
           </div>
 
-{/* KANAN: STATS DENGAN LAYOUT 2x2 */}
-<div style={{
-  background: '#1a1a1a',
-  borderRadius: '16px',
-  padding: '20px',
-  border: '1px solid #333',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px'
-}}>
-  {/* Header dengan dekorasi */}
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{
-        width: '32px',
-        height: '32px',
-        borderRadius: '10px',
-        background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
-      }}>
-        <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
-      </div>
-      <div>
-        <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>Ringkasan</span>
-        <div style={{ color: '#666', fontSize: '11px' }}>Live overview</div>
-      </div>
-    </div>
-    <div style={{
-      background: '#222',
-      padding: '4px 8px',
-      borderRadius: '20px',
-      border: '1px solid #333'
-    }}>
-      <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
-        <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
-        Live
-      </span>
-    </div>
-  </div>
+          {/* RIGHT: STATS */}
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '1px solid #333',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
+                }}>
+                  <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
+                </div>
+                <div>
+                  <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>Summary</span>
+                  <div style={{ color: '#666', fontSize: '11px' }}>Live overview</div>
+                </div>
+              </div>
+              <div style={{
+                background: '#222',
+                padding: '4px 8px',
+                borderRadius: '20px',
+                border: '1px solid #333'
+              }}>
+                <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
+                  <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
+                  Live
+                </span>
+              </div>
+            </div>
 
-  {/* Progress Bar Total (YANG BAGUS) */}
-  <div style={{
-    background: '#222',
-    borderRadius: '12px',
-    padding: '16px',
-    border: '1px solid #333',
-    marginBottom: '4px'
-  }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-      <span style={{ color: '#aaa', fontSize: '12px' }}>Completion Rate</span>
-      <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
-        {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
-      </span>
-    </div>
-    <div style={{
-      width: '100%',
-      height: '8px',
-      background: '#2a2a2a',
-      borderRadius: '4px',
-      overflow: 'hidden'
-    }}>
-      <div style={{
-        width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
-        height: '100%',
-        background: 'linear-gradient(90deg, #28a745, #34ce57)',
-        borderRadius: '4px',
-        transition: 'width 0.3s ease'
-      }} />
-    </div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
-      <span>Closed: {stats.closed}</span>
-      <span>Total: {stats.total}</span>
-    </div>
-  </div>
+            <div style={{
+              background: '#222',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid #333',
+              marginBottom: '4px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ color: '#aaa', fontSize: '12px' }}>Completion Rate</span>
+                <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
+                  {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
+                </span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: '#2a2a2a',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #28a745, #34ce57)',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
+                <span>Closed: {stats.closed}</span>
+                <span>Total: {stats.total}</span>
+              </div>
+            </div>
 
-  {/* Grid 2x2 untuk Stats */}
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '10px'
-  }}>
-    
-    {/* Open Card */}
-    <div style={{
-      background: '#222',
-      borderRadius: '12px',
-      padding: '14px',
-      border: '1px solid #333',
-      transition: '0.2s',
-      cursor: 'pointer'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#ffc107'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: '#ffc10720',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #ffc10740'
-        }}>
-          <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
-        </div>
-        <div>
-          <div style={{ color: '#aaa', fontSize: '11px' }}>Open</div>
-          <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
-        </div>
-      </div>
-    </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '10px'
+            }}>
+              
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#ffc107'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#ffc10720',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #ffc10740'
+                  }}>
+                    <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>Open</div>
+                    <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
+                  </div>
+                </div>
+              </div>
 
-    {/* Progress Card */}
-    <div style={{
-      background: '#222',
-      borderRadius: '12px',
-      padding: '14px',
-      border: '1px solid #333',
-      transition: '0.2s',
-      cursor: 'pointer'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#17a2b8'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: '#17a2b820',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #17a2b840'
-        }}>
-          <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
-        </div>
-        <div>
-          <div style={{ color: '#aaa', fontSize: '11px' }}>Progress</div>
-          <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
-        </div>
-      </div>
-    </div>
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#17a2b8'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#17a2b820',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #17a2b840'
+                  }}>
+                    <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>Progress</div>
+                    <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
+                  </div>
+                </div>
+              </div>
 
-    {/* Closed Card */}
-    <div style={{
-      background: '#222',
-      borderRadius: '12px',
-      padding: '14px',
-      border: '1px solid #333',
-      transition: '0.2s',
-      cursor: 'pointer'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#28a745'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: '#28a74520',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #28a74540'
-        }}>
-          <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
-        </div>
-        <div>
-          <div style={{ color: '#aaa', fontSize: '11px' }}>Closed</div>
-          <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
-        </div>
-      </div>
-    </div>
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#28a745'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#28a74520',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #28a74540'
+                  }}>
+                    <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>Closed</div>
+                    <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
+                  </div>
+                </div>
+              </div>
 
-    {/* Total Card */}
-    <div style={{
-      background: '#222',
-      borderRadius: '12px',
-      padding: '14px',
-      border: '1px solid #333',
-      transition: '0.2s',
-      cursor: 'pointer'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #8b3a3a30, #8b3a3a10)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid #8b3a3a40'
-        }}>
-          <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
-        </div>
-        <div>
-          <div style={{ color: '#aaa', fontSize: '11px' }}>Total</div>
-          <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {/* Mini Footer - Simple aja */}
-  <div style={{
-  }}>
-  </div>
-</div>
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #8b3a3a30, #8b3a3a10)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #8b3a3a40'
+                  }}>
+                    <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>Total</div>
+                    <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* FILTER SECTION */}
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Status</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="all">Semua Status</option>
+                <option value="all">All Status</option>
                 <option value="Open">Open</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Closed">Closed</option>
@@ -1502,22 +1572,32 @@ export default function Dashboard() {
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>PIC</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={picFilter} onChange={(e) => setPicFilter(e.target.value)}>
-                <option value="all">Semua PIC</option>
+                <option value="all">All PIC</option>
                 {picOptions.map(pic => <option key={pic} value={pic}>{pic}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Plan</label>
+              <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
+                <option value="all">All Plan</option>
+                {planOptions.map(plan => <option key={plan} value={plan}>{plan}</option>)}
+                <option value="FAJAR">FAJAR</option>
+                <option value="BEKASI">BEKASI</option>
+                <option value="SIP">SIP</option>
               </select>
             </div>
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Due Date</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={dueFilter} onChange={(e) => setDueFilter(e.target.value)}>
-                <option value="all">Semua</option>
+                <option value="all">All</option>
                 <option value="overdue">Overdue</option>
-                <option value="warning">Mepet (H-3)</option>
-                <option value="safe">Aman</option>
+                <option value="warning">Warning (≤3 days)</option>
+                <option value="safe">Safe</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Cari</label>
-              <input type="text" placeholder="PN, Part, Problem..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: '100%', background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}/>
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Search</label>
+              <input type="text" placeholder="PN, Part, Description..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: '100%', background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}/>
             </div>
           </div>
         </div>
@@ -1530,7 +1610,7 @@ export default function Dashboard() {
           padding: '20px'
         }}>
           
-          {/* Header Table */}
+          {/* Table Header */}
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1541,7 +1621,7 @@ export default function Dashboard() {
           }}>
             <h5 style={{ color: 'white', margin: 0, fontSize: '16px' }}>
               <i className="fas fa-list-ul me-2" style={{ color: '#c44a4a' }}></i>
-              Daftar Problem Material
+              BNF Records List
             </h5>
             
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1595,38 +1675,40 @@ export default function Dashboard() {
             <table style={{ 
               width: '100%', 
               borderCollapse: 'collapse',
-              minWidth: '1500px',
+              minWidth: '1800px',
               color: 'white',
               fontSize: '13px'
             }}>
               <thead>
                 <tr style={{ background: '#2a2a2a' }}>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '50px' }}>No</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '40px' }}>No</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '70px' }}>PLAN</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Supplier</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Problem</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Description</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>Issued Timing</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Action</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Due Date</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Note</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '80px' }}>Images</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Status</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Aksi</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={13} style={{ 
+                    <td colSpan={15} style={{ 
                       textAlign: 'center', 
                       padding: '60px 20px', 
                       color: '#666',
                       border: '1px solid #404040'
                     }}>
                       <i className="fas fa-folder-open" style={{ fontSize: '40px', marginBottom: '16px', color: '#8b3a3a' }}></i>
-                      <p>Tidak Ada Data</p>
+                      <p>No Records Found</p>
                     </td>
                   </tr>
                 ) : (
@@ -1649,11 +1731,27 @@ export default function Dashboard() {
                     return (
                       <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                          <span style={{
+                            background: item.plan === 'FAJAR' ? '#ffc10720' : 
+                                       item.plan === 'BEKASI' ? '#17a2b820' : 
+                                       item.plan === 'SIP' ? '#28a74520' : '#8b3a3a20',
+                            color: item.plan === 'FAJAR' ? '#ffc107' : 
+                                   item.plan === 'BEKASI' ? '#17a2b8' : 
+                                   item.plan === 'SIP' ? '#28a745' : '#8b3a3a',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: 600
+                          }}>
+                            {item.plan || '-'}
+                          </span>
+                        </td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.denso_pn}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.part_name || '-'}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
-                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.problem}</td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.description}</td>
                         
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1684,6 +1782,32 @@ export default function Dashboard() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
                         
+                      <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                        {item.images ? (
+                          <button
+                            onClick={() => openImageModal(item.images)}
+                            style={{
+                              background: '#17a2b8',
+                              border: 'none',
+                              color: 'white',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              margin: '0 auto'
+                            }}
+                          >
+                            <i className="fas fa-image"></i>
+                            View
+                          </button>
+                        ) : (
+                          <span style={{ color: '#666', fontSize: '11px' }}>-</span>
+                        )}
+                      </td>
+                        
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <span style={{ 
                             background: statusColor,
@@ -1703,39 +1827,49 @@ export default function Dashboard() {
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button 
                               style={{ 
-                                background: '#8b3a3a', 
+                                background: canEdit(item) ? '#8b3a3a' : '#444',
                                 color: 'white', 
                                 border: 'none', 
                                 borderRadius: '6px',
                                 padding: '6px 12px',
-                                cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
-                                opacity: item.status === 'Closed' ? 0.5 : 1,
+                                cursor: canEdit(item) ? 'pointer' : 'not-allowed',
+                                opacity: canEdit(item) ? 1 : 0.5,
                                 fontSize: '12px',
                                 minWidth: '60px'
                               }}
-                              onClick={() => item.status !== 'Closed' && openEditModal(item)}
-                              disabled={item.status === 'Closed'}
+                              onClick={() => canEdit(item) && openEditModal(item)}
+                              disabled={!canEdit(item)}
                             >
                               <i className="fas fa-edit me-1"></i> Edit
                             </button>
                             <button 
                               style={{ 
-                                background: '#dc3545', 
+                                background: canDelete(item) ? '#dc3545' : '#444',
                                 color: 'white', 
                                 border: 'none', 
                                 borderRadius: '6px',
                                 padding: '6px 12px',
-                                cursor: item.status === 'Closed' ? 'not-allowed' : 'pointer',
-                                opacity: item.status === 'Closed' ? 0.5 : 1,
+                                cursor: canDelete(item) ? 'pointer' : 'not-allowed',
+                                opacity: canDelete(item) ? 1 : 0.5,
                                 fontSize: '12px',
                                 minWidth: '60px'
                               }}
-                              onClick={() => item.status !== 'Closed' && deleteProblem(item.id)}
-                              disabled={item.status === 'Closed'}
+                              onClick={() => canDelete(item) && deleteItem(item.id)}
+                              disabled={!canDelete(item)}
                             >
-                              <i className="fas fa-trash me-1"></i> Hapus
+                              <i className="fas fa-trash me-1"></i> Delete
                             </button>
                           </div>
+                          {item.status === 'Closed' && (
+                            <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                              <i className="fas fa-lock"></i> Locked
+                            </div>
+                          )}
+                          {item.status !== 'Closed' && editStatus === 'Closed' && currentUser?.role !== 'master' && (
+                            <div style={{ fontSize: '10px', color: '#ffc107', marginTop: '4px' }}>
+                              <i className="fas fa-crown"></i> Master only
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1746,7 +1880,7 @@ export default function Dashboard() {
           </div>
           
           {/* Pagination */}
-          {filteredProblems.length > 0 && (
+          {filteredItems.length > 0 && (
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -1758,7 +1892,7 @@ export default function Dashboard() {
               gap: '12px'
             }}>
               <div>
-                {startIndex + 1} - {Math.min(endIndex, filteredProblems.length)} dari {filteredProblems.length}
+                {startIndex + 1} - {Math.min(endIndex, filteredItems.length)} of {filteredItems.length}
               </div>
               
               <div style={{ display: 'flex', gap: '5px' }}>
@@ -1775,7 +1909,7 @@ export default function Dashboard() {
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
-                  Sebelumnya
+                  Previous
                 </button>
                 
                 <span style={{ 
@@ -1800,7 +1934,7 @@ export default function Dashboard() {
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  Selanjutnya
+                  Next
                 </button>
               </div>
             </div>
@@ -1835,10 +1969,10 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h5 className="modal-title text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
-                    Update Problem Material
+                    Update BNF Record
                   </h5>
                   <p style={{ color: '#aaa', fontSize: '12px', margin: '4px 0 0 0' }}>
-                    {selectedProblem?.denso_pn} - {selectedProblem?.part_name}
+                    {selectedItem?.denso_pn} - {selectedItem?.part_name}
                   </p>
                 </div>
               </div>
@@ -1852,7 +1986,7 @@ export default function Dashboard() {
                 gap: '20px'
               }}>
                 
-                {/* KOLOM KIRI */}
+                {/* LEFT COLUMN */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ color: '#ccc', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1873,7 +2007,7 @@ export default function Dashboard() {
                         fontSize: '13px',
                         resize: 'vertical'
                       }}
-                      placeholder="Tuliskan tindakan yang sudah dilakukan..."
+                      placeholder="Write the action taken..."
                     />
                   </div>
 
@@ -1918,12 +2052,12 @@ export default function Dashboard() {
                         fontSize: '13px',
                         width: '100%'
                       }}
-                      placeholder="Nama PIC"
+                      placeholder="Person in charge"
                     />
                   </div>
                 </div>
 
-                {/* KOLOM KANAN */}
+                {/* RIGHT COLUMN */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ color: '#ccc', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1944,25 +2078,29 @@ export default function Dashboard() {
                         width: '100%'
                       }}
                     >
-                      {selectedProblem?.status === 'Open' && (
+                      {selectedItem?.status === 'Open' && (
                         <>
                           <option value="Open">🔴 Open</option>
                           <option value="In Progress">🟡 In Progress</option>
-                          <option value="Closed">🟢 Closed</option>
+                          {currentUser?.role === 'master' && (
+                            <option value="Closed">🟢 Closed</option>
+                          )}
                         </>
                       )}
-                      {selectedProblem?.status === 'In Progress' && (
+                      {selectedItem?.status === 'In Progress' && (
                         <>
                           <option value="In Progress">🟡 In Progress</option>
-                          <option value="Closed">🟢 Closed</option>
+                          {currentUser?.role === 'master' && (
+                            <option value="Closed">🟢 Closed</option>
+                          )}
                         </>
                       )}
-                      {selectedProblem?.status === 'Closed' && (
+                      {selectedItem?.status === 'Closed' && (
                         <option value="Closed">🟢 Closed</option>
                       )}
                     </select>
                     
-                    {selectedProblem?.status === 'In Progress' && (
+                    {selectedItem?.status === 'In Progress' && editStatus === 'Closed' && currentUser?.role !== 'master' && (
                       <div style={{
                         marginTop: '8px',
                         padding: '8px 12px',
@@ -1972,12 +2110,12 @@ export default function Dashboard() {
                         fontSize: '11px',
                         color: '#ffc107'
                       }}>
-                        <i className="fas fa-info-circle me-1"></i>
-                        Status In Progress hanya bisa diubah ke Closed
+                        <i className="fas fa-crown me-1"></i>
+                        Only MASTER can change status to CLOSED
                       </div>
                     )}
                     
-                    {selectedProblem?.status === 'Closed' && (
+                    {selectedItem?.status === 'Closed' && (
                       <div style={{
                         marginTop: '8px',
                         padding: '8px 12px',
@@ -1988,7 +2126,7 @@ export default function Dashboard() {
                         color: '#28a745'
                       }}>
                         <i className="fas fa-lock me-1"></i>
-                        Data Closed tidak dapat diubah
+                        Closed records cannot be modified
                       </div>
                     )}
                   </div>
@@ -2012,7 +2150,7 @@ export default function Dashboard() {
                         fontSize: '13px',
                         resize: 'vertical'
                       }}
-                      placeholder="Catatan tambahan..."
+                      placeholder="Additional notes..."
                     />
                   </div>
                 </div>
@@ -2032,7 +2170,7 @@ export default function Dashboard() {
               }}>
                 <i className="fas fa-clock" style={{ color: '#8b3a3a' }}></i>
                 <span>
-                  Created: {selectedProblem ? new Date(selectedProblem.created_at).toLocaleString('id-ID') : '-'}
+                  Created: {selectedItem ? new Date(selectedItem.created_at).toLocaleString('en-US') : '-'}
                 </span>
               </div>
             </div>
@@ -2057,13 +2195,13 @@ export default function Dashboard() {
                 data-bs-dismiss="modal"
               >
                 <i className="fas fa-times me-2"></i>
-                Batal
+                Cancel
               </button>
               <button 
                 type="button" 
                 className="btn" 
                 style={{ 
-                  background: '#8b3a3a', 
+                  background: selectedItem?.status === 'Closed' ? '#444' : '#8b3a3a',
                   color: 'white', 
                   border: 'none',
                   padding: '10px 32px',
@@ -2072,13 +2210,98 @@ export default function Dashboard() {
                   fontWeight: 600,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '8px',
+                  opacity: selectedItem?.status === 'Closed' ? 0.5 : 1,
+                  cursor: selectedItem?.status === 'Closed' ? 'not-allowed' : 'pointer'
                 }} 
                 onClick={saveUpdate}
+                disabled={selectedItem?.status === 'Closed'}
               >
                 <i className="fas fa-save"></i>
-                Simpan Perubahan
+                Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* IMAGE MODAL */}
+      <div className="modal fade" id="imageModal" tabIndex={-1}>
+        <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-content" style={{ 
+            background: '#1a1a1a', 
+            border: '2px solid #8b3a3a',
+            borderRadius: '16px'
+          }}>
+            <div className="modal-header" style={{ 
+              background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+              border: 'none',
+              padding: '16px 24px'
+            }}>
+              <h5 className="modal-title text-white">
+                <i className="fas fa-image me-2" style={{ color: '#c44a4a' }}></i>
+                Image Viewer
+              </h5>
+              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px', textAlign: 'center' }}>
+              {selectedImage ? (
+                <img 
+                  src={selectedImage} 
+                  alt="BNF Image" 
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '500px',
+                    borderRadius: '8px',
+                    border: '1px solid #333'
+                  }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.parentElement!.innerHTML = `
+                      <div style="padding: 40px; color: #666;">
+                        <i class="fas fa-image-slash" style="font-size: 48px; margin-bottom: 16px;"></i>
+                        <p>Image failed to load</p>
+                      </div>
+                    `;
+                  }}
+                />
+              ) : (
+                <div style={{ padding: '40px', color: '#666' }}>
+                  <i className="fas fa-image-slash" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
+                  <p>No image available</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ borderTop: '1px solid #333', padding: '16px 24px' }}>
+              <button type="button" className="btn" style={{ 
+                background: '#2a2a2a', 
+                border: '1px solid #404040', 
+                color: 'white',
+                padding: '8px 24px',
+                borderRadius: '8px'
+              }} data-bs-dismiss="modal">
+                Close
+              </button>
+              {selectedImage && (
+                <a 
+                  href={selectedImage} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{
+                    background: '#8b3a3a',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 24px',
+                    borderRadius: '8px',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <i className="fas fa-external-link-alt me-2"></i>
+                  Open Original
+                </a>
+              )}
             </div>
           </div>
         </div>
