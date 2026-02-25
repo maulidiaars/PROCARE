@@ -24,20 +24,25 @@ declare global {
   }
 }
 
+type ImageItem = {
+  url: string;
+  caption: string;
+};
+
 type BNFItem = {
   id: number;
   denso_pn: string;
-  plan: string;
+  plant: string;
   part_name: string | null;
   local_import: string;
   supplier_name: string | null;
   description: string;
-  timing_date_time: string;
+  issued_date_time: string;
   action: string | null;
   due_date_max: string;
   pic: string | null;
   note_remark: string | null;
-  images: string | null;
+  images: ImageItem[] | null;
   created_at: string;
   status: string;
 };
@@ -61,10 +66,10 @@ export default function Dashboard() {
   // Filter
   const [statusFilter, setStatusFilter] = useState('all');
   const [picFilter, setPicFilter] = useState('all');
-  const [planFilter, setPlanFilter] = useState('all');
+  const [plantFilter, setPlantFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState('all');
   const [picOptions, setPicOptions] = useState<string[]>([]);
-  const [planOptions, setPlanOptions] = useState<string[]>([]);
+  const [plantOptions, setPlantOptions] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
 
   // Edit Modal
@@ -76,16 +81,18 @@ export default function Dashboard() {
   const [editStatus, setEditStatus] = useState('');
   const modalRef = useRef<any>(null);
 
-  // Image Modal
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const imageModalRef = useRef<any>(null);
+  // Image Gallery Modal
+  const [selectedImages, setSelectedImages] = useState<ImageItem[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const galleryModalRef = useRef<any>(null);
+
+  // Menu Modal
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const menuModalRef = useRef<any>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
-  // MODAL SELECTOR
-  const [showSelector, setShowSelector] = useState(false);
 
   // DATA FOR CHART
   const [chartData, setChartData] = useState<any[]>([]);
@@ -121,9 +128,14 @@ export default function Dashboard() {
             modalRef.current = new window.bootstrap.Modal(modalElement);
           }
           
-          const imageModalElement = document.getElementById('imageModal');
-          if (imageModalElement && !imageModalRef.current) {
-            imageModalRef.current = new window.bootstrap.Modal(imageModalElement);
+          const galleryModalElement = document.getElementById('galleryModal');
+          if (galleryModalElement && !galleryModalRef.current) {
+            galleryModalRef.current = new window.bootstrap.Modal(galleryModalElement);
+          }
+
+          const menuModalElement = document.getElementById('menuModal');
+          if (menuModalElement && !menuModalRef.current) {
+            menuModalRef.current = new window.bootstrap.Modal(menuModalElement);
           }
         }
       }, 500);
@@ -135,11 +147,11 @@ export default function Dashboard() {
   // FILTER EFFECTS
   useEffect(() => {
     applyFilters();
-  }, [bnfItems, statusFilter, picFilter, planFilter, dueFilter, searchText]);
+  }, [bnfItems, statusFilter, picFilter, plantFilter, dueFilter, searchText]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, picFilter, planFilter, dueFilter, searchText]);
+  }, [statusFilter, picFilter, plantFilter, dueFilter, searchText]);
 
   // LOGOUT
   const handleLogout = () => {
@@ -174,15 +186,15 @@ export default function Dashboard() {
 
       if (isFirstDayOfMonth && lastResetMonthYear !== currentMonthYear) {
         const result = await Swal.fire({
-          title: '🔄 Monthly Cleanup',
+          title: '🔄 MONTHLY CLEANUP',
           html: `
             <div style="text-align: center">
               <i class="fas fa-calendar-alt" style="font-size: 48px; color: #8b3a3a; margin-bottom: 16px;"></i>
-              <p style="font-size: 16px; margin-bottom: 8px;">Today is the 1st!</p>
-              <p style="color: #aaa; font-size: 14px;">Records with CLOSED status will be deleted.</p>
+              <p style="font-size: 16px; margin-bottom: 8px;">TODAY IS THE 1ST!</p>
+              <p style="color: #aaa; font-size: 14px;">RECORDS WITH CLOSED STATUS WILL BE DELETED.</p>
               <p style="color: #28a745; font-size: 13px; margin-top: 12px;">
                 <i class="fas fa-info-circle me-1"></i>
-                OPEN & IN PROGRESS records are kept.
+                OPEN & IN PROGRESS RECORDS ARE KEPT.
               </p>
             </div>
           `,
@@ -190,8 +202,8 @@ export default function Dashboard() {
           showCancelButton: true,
           confirmButtonColor: '#8b3a3a',
           cancelButtonColor: '#2a2a2a',
-          confirmButtonText: 'Yes, Clean Up',
-          cancelButtonText: 'Later',
+          confirmButtonText: 'YES, CLEAN UP',
+          cancelButtonText: 'LATER',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -202,8 +214,8 @@ export default function Dashboard() {
           
           Swal.fire({
             icon: 'success',
-            title: '✅ Cleanup Successful',
-            text: 'CLOSED records have been deleted. Active records are safe!',
+            title: '✅ CLEANUP SUCCESSFUL',
+            text: 'CLOSED RECORDS HAVE BEEN DELETED. ACTIVE RECORDS ARE SAFE!',
             timer: 3000,
             showConfirmButton: false,
             background: '#1a1a1a',
@@ -237,8 +249,8 @@ export default function Dashboard() {
       console.error('Error reset data:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Failed',
-        text: 'An error occurred during cleanup',
+        title: '❌ FAILED',
+        text: 'AN ERROR OCCURRED DURING CLEANUP',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -261,7 +273,8 @@ export default function Dashboard() {
 
       const dataWithStatus = (data || []).map(item => ({
         ...item,
-        status: item.status || 'Open'
+        status: item.status || 'Open',
+        images: item.images || []
       }));
 
       setBnfItems(dataWithStatus);
@@ -314,8 +327,8 @@ export default function Dashboard() {
       const pics = [...new Set(dataWithStatus.map(p => p.pic).filter(p => p && p !== '-'))] as string[];
       setPicOptions(pics);
 
-      const plans = [...new Set(dataWithStatus.map(p => p.plan).filter(p => p))] as string[];
-      setPlanOptions(plans);
+      const plants = [...new Set(dataWithStatus.map(p => p.plant).filter(p => p))] as string[];
+      setPlantOptions(plants);
 
     } catch (error) {
       console.error('Error:', error);
@@ -336,8 +349,8 @@ export default function Dashboard() {
       filtered = filtered.filter(p => p.pic === picFilter);
     }
 
-    if (planFilter !== 'all') {
-      filtered = filtered.filter(p => p.plan === planFilter);
+    if (plantFilter !== 'all') {
+      filtered = filtered.filter(p => p.plant === plantFilter);
     }
 
     if (dueFilter !== 'all') {
@@ -364,7 +377,7 @@ export default function Dashboard() {
       const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(p => 
         p.denso_pn.toLowerCase().includes(searchLower) ||
-        (p.plan && p.plan.toLowerCase().includes(searchLower)) ||
+        (p.plant && p.plant.toLowerCase().includes(searchLower)) ||
         (p.part_name && p.part_name.toLowerCase().includes(searchLower)) ||
         (p.supplier_name && p.supplier_name.toLowerCase().includes(searchLower)) ||
         p.description.toLowerCase().includes(searchLower) ||
@@ -441,12 +454,22 @@ export default function Dashboard() {
   function canUpdate(currentStatus: string, newStatus: string): boolean {
     if (currentStatus === 'Closed') return false;
     
+    // Staff cannot change to Closed
     if (newStatus === 'Closed' && currentUser?.role !== 'master') {
       return false;
     }
     
-    if (currentStatus === 'In Progress') return newStatus === 'Closed';
-    if (currentStatus === 'Open') return newStatus === 'In Progress' || newStatus === 'Closed';
+    if (currentStatus === 'In Progress') {
+      // In Progress can only go to Closed (and only master can do that)
+      return newStatus === 'Closed' && currentUser?.role === 'master';
+    }
+    
+    if (currentStatus === 'Open') {
+      // Open can go to In Progress (anyone) or Closed (master only)
+      if (newStatus === 'In Progress') return true;
+      if (newStatus === 'Closed') return currentUser?.role === 'master';
+    }
+    
     return false;
   }
 
@@ -460,11 +483,19 @@ export default function Dashboard() {
     return true;
   }
 
-  // OPEN IMAGE MODAL
-  function openImageModal(imageUrl: string) {
-    setSelectedImage(imageUrl);
-    if (imageModalRef.current) {
-      imageModalRef.current.show();
+  // OPEN GALLERY
+  function openGallery(images: ImageItem[]) {
+    setSelectedImages(images);
+    setCurrentImageIndex(0);
+    if (galleryModalRef.current) {
+      galleryModalRef.current.show();
+    }
+  }
+
+  // OPEN MENU MODAL
+  function openMenuModal() {
+    if (menuModalRef.current) {
+      menuModalRef.current.show();
     }
   }
 
@@ -473,8 +504,8 @@ export default function Dashboard() {
     if (!canEdit(item)) {
       Swal.fire({
         icon: 'error',
-        title: '❌ Cannot Edit',
-        text: 'CLOSED records cannot be modified!',
+        title: '❌ CANNOT EDIT',
+        text: 'CLOSED RECORDS CANNOT BE MODIFIED!',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -503,85 +534,88 @@ export default function Dashboard() {
     }
   }
 
-  async function saveUpdate() {
-    if (!selectedItem) return;
-    
-    if (!editAction || !editDueDate || !editPic || !editStatus) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Warning',
-        text: 'Action, Due Date, PIC, and Status are required!',
-        background: '#1a1a1a',
-        color: 'white'
-      });
-      return;
-    }
-
-    if (!canUpdate(selectedItem.status, editStatus)) {
-      let message = '';
-      if (selectedItem.status === 'Closed') {
-        message = 'CLOSED records cannot be modified!';
-      } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
-        message = 'IN PROGRESS status can only be changed to CLOSED!';
-      } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
-        message = 'Only MASTER users can change status to CLOSED!';
-      } else {
-        message = 'Status change not allowed!';
-      }
-      
-      Swal.fire({
-        icon: 'error',
-        title: '❌ Not Allowed',
-        text: message,
-        background: '#1a1a1a',
-        color: 'white'
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('problems')
-        .update({
-          action: editAction,
-          due_date_max: editDueDate,
-          pic: editPic,
-          note_remark: editNote || null,
-          status: editStatus
-        })
-        .eq('id', selectedItem.id);
-
-      if (error) throw error;
-      
-      await Swal.fire({
-        icon: 'success',
-        title: '✅ Success!',
-        text: 'Record updated successfully',
-        timer: 1500,
-        showConfirmButton: false,
-        background: '#1a1a1a',
-        color: 'white'
-      });
-
-      if (modalRef.current) {
-        modalRef.current.hide();
-      }
-      
-      setSelectedItem(null);
-      await fetchData();
-
-    } catch (error) {
-      console.error('Update error:', error);
-      
-      Swal.fire({
-        icon: 'error',
-        title: '❌ Update Failed',
-        text: 'An error occurred',
-        background: '#1a1a1a',
-        color: 'white'
-      });
-    }
+async function saveUpdate() {
+  if (!selectedItem) return;
+  
+  if (!editAction || !editDueDate || !editPic || !editStatus) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'WARNING',
+      text: 'ACTION, DUE DATE, PIC, AND STATUS ARE REQUIRED!',
+      background: '#1a1a1a',
+      color: 'white'
+    });
+    return;
   }
+
+  if (!canUpdate(selectedItem.status, editStatus)) {
+    let message = '';
+    if (selectedItem.status === 'Closed') {
+      message = 'CLOSED RECORDS CANNOT BE MODIFIED!';
+    } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
+      message = 'IN PROGRESS STATUS CAN ONLY BE CHANGED TO CLOSED!';
+    } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
+      message = 'ONLY MASTER USERS CAN CHANGE STATUS TO CLOSED!';
+    } else {
+      message = 'STATUS CHANGE NOT ALLOWED!';
+    }
+    
+    Swal.fire({
+      icon: 'error',
+      title: '❌ NOT ALLOWED',
+      text: message,
+      background: '#1a1a1a',
+      color: 'white'
+    });
+    return;
+  }
+
+  try {
+    // PASTIKAN KALAU IMAGES TIDAK DIUPDATE
+    const { error } = await supabase
+      .from('problems')
+      .update({
+        action: editAction,
+        due_date_max: editDueDate,
+        pic: editPic,
+        note_remark: editNote || null,
+        status: editStatus
+        // 👆 PERHATIKAN: images TIDAK ADA DI SINI!
+        // Jadi kolom images tidak akan berubah
+      })
+      .eq('id', selectedItem.id);
+
+    if (error) throw error;
+    
+    await Swal.fire({
+      icon: 'success',
+      title: '✅ SUCCESS!',
+      text: 'RECORD UPDATED SUCCESSFULLY',
+      timer: 1500,
+      showConfirmButton: false,
+      background: '#1a1a1a',
+      color: 'white'
+    });
+
+    if (modalRef.current) {
+      modalRef.current.hide();
+    }
+    
+    setSelectedItem(null);
+    await fetchData();
+
+  } catch (error) {
+    console.error('Update error:', error);
+    
+    Swal.fire({
+      icon: 'error',
+      title: '❌ UPDATE FAILED',
+      text: 'AN ERROR OCCURRED',
+      background: '#1a1a1a',
+      color: 'white'
+    });
+  }
+}
 
   async function deleteItem(id: number) {
     const item = bnfItems.find(p => p.id === id);
@@ -589,8 +623,8 @@ export default function Dashboard() {
     if (item?.status === 'Closed') {
       Swal.fire({
         icon: 'error',
-        title: '❌ Cannot Delete',
-        text: 'CLOSED records cannot be deleted!',
+        title: '❌ CANNOT DELETE',
+        text: 'CLOSED RECORDS CANNOT BE DELETED!',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -598,14 +632,14 @@ export default function Dashboard() {
     }
 
     const result = await Swal.fire({
-      title: 'Delete Confirmation',
-      text: 'This record will be permanently deleted!',
+      title: 'DELETE CONFIRMATION',
+      text: 'THIS RECORD WILL BE PERMANENTLY DELETED!',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
-      confirmButtonText: 'Yes, Delete!',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: 'YES, DELETE!',
+      cancelButtonText: 'CANCEL',
       background: '#1a1a1a',
       color: 'white'
     });
@@ -621,8 +655,8 @@ export default function Dashboard() {
 
         Swal.fire({
           icon: 'success',
-          title: 'Deleted!',
-          text: 'Record has been deleted',
+          title: 'DELETED!',
+          text: 'RECORD HAS BEEN DELETED',
           timer: 1500,
           showConfirmButton: false,
           background: '#1a1a1a',
@@ -634,8 +668,8 @@ export default function Dashboard() {
       } catch (error) {
         Swal.fire({
           icon: 'error',
-          title: 'Error',
-          text: 'Failed to delete record',
+          title: 'ERROR',
+          text: 'FAILED TO DELETE RECORD',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -646,20 +680,20 @@ export default function Dashboard() {
   // DOWNLOAD EXCEL
   async function downloadExcel() {
     const result = await Swal.fire({
-      title: '📊 Download Excel',
+      title: '📊 DOWNLOAD EXCEL',
       html: `
         <div style="text-align: left">
-          <p style="color: #fff; margin-bottom: 16px;">Select data period:</p>
+          <p style="color: #fff; margin-bottom: 16px;">SELECT DATA PERIOD:</p>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="all" checked style="cursor: pointer;"> 
               <i class="fas fa-database" style="color: #8b3a3a;"></i>
-              All Records (${filteredItems.length} records)
+              ALL RECORDS (${filteredItems.length} RECORDS)
             </label>
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="month" style="cursor: pointer;"> 
               <i class="fas fa-calendar-alt" style="color: #28a745;"></i>
-              This Month Only
+              THIS MONTH ONLY
             </label>
           </div>
         </div>
@@ -667,8 +701,8 @@ export default function Dashboard() {
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
-      confirmButtonText: 'Download',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: 'DOWNLOAD',
+      cancelButtonText: 'CANCEL',
       background: '#1a1a1a',
       color: 'white',
       preConfirm: () => {
@@ -695,8 +729,8 @@ export default function Dashboard() {
       if (dataToDownload.length === 0) {
         Swal.fire({
           icon: 'info',
-          title: 'No Data',
-          text: 'No records for this month',
+          title: 'NO DATA',
+          text: 'NO RECORDS FOR THIS MONTH',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -709,10 +743,10 @@ export default function Dashboard() {
       
       const title = `PT. DENSO INDONESIA - BNF MATERIAL CONTROL`;
       const periode = period === 'month' 
-        ? `Period: ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-        : `Period: All Records`;
-      const dateGenerated = `Generated: ${new Date().toLocaleString('en-US')}`;
-      const totalData = `Total Records: ${dataToDownload.length}`;
+        ? `PERIOD: ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}`
+        : `PERIOD: ALL RECORDS`;
+      const dateGenerated = `GENERATED: ${new Date().toLocaleString('en-US').toUpperCase()}`;
+      const totalData = `TOTAL RECORDS: ${dataToDownload.length}`;
       
       const wsData = [
         [title],
@@ -720,27 +754,27 @@ export default function Dashboard() {
         [dateGenerated],
         [totalData],
         [],
-        ['NO', 'PLAN', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER', 'DESCRIPTION', 
+        ['NO', 'PLANT', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER NAME', 'DESCRIPTION', 
          'ISSUED DATE', 'TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE', 'IMAGES', 'STATUS']
       ];
       
       dataToDownload.forEach((item, index) => {
         wsData.push([
           String(index + 1),
-          String(item.plan || '-'),
+          String(item.plant || '-'),
           String(item.denso_pn),
           String(item.part_name || '-'),
           String(item.local_import),
           String(item.supplier_name || '-'),
           String(item.description),
-          formatDateOnly(item.timing_date_time),
-          formatTimeOnly(item.timing_date_time),
+          formatDateOnly(item.issued_date_time),
+          formatTimeOnly(item.issued_date_time),
           String(item.action || '-'),
           formatDateOnly(item.due_date_max),
           String(item.pic || '-'),
           String(item.note_remark || '-'),
-          item.images ? 'Yes' : '-',
-          String(item.status || 'Open')
+          item.images && item.images.length > 0 ? `${item.images.length} IMAGE(S)` : '-',
+          String(item.status || 'Open').toUpperCase()
         ]);
       });
       
@@ -756,25 +790,25 @@ export default function Dashboard() {
       ws['!cols'] = [
         { wch: 5 }, { wch: 8 }, { wch: 15 }, { wch: 25 }, { wch: 8 },
         { wch: 30 }, { wch: 50 }, { wch: 12 }, { wch: 8 }, { wch: 50 },
-        { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 10 }, { wch: 12 }
+        { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 12 }
       ];
       
-      XLSX.utils.book_append_sheet(wb, ws, 'BNF Data');
+      XLSX.utils.book_append_sheet(wb, ws, 'BNF DATA');
       
       const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
       const fileName = period === 'month'
         ? `BNF_${new Date().getFullYear()}${month}.xlsx`
-        : `BNF_All_${new Date().getFullYear()}${month}${new Date().getDate().toString().padStart(2, '0')}.xlsx`;
+        : `BNF_ALL_${new Date().getFullYear()}${month}${new Date().getDate().toString().padStart(2, '0')}.xlsx`;
       
       XLSX.writeFile(wb, fileName);
       
       Swal.fire({
         icon: 'success',
-        title: '✅ Excel Success',
+        title: '✅ EXCEL SUCCESS',
         html: `
           <div style="text-align: left">
-            <p><i class="fas fa-file-excel me-2" style="color: #28a745;"></i> File: ${fileName}</p>
-            <p><i class="fas fa-database me-2" style="color: #8b3a3a;"></i> Records: ${dataToDownload.length}</p>
+            <p><i class="fas fa-file-excel me-2" style="color: #28a745;"></i> FILE: ${fileName}</p>
+            <p><i class="fas fa-database me-2" style="color: #8b3a3a;"></i> RECORDS: ${dataToDownload.length}</p>
             <p><i class="fas fa-calendar me-2" style="color: #17a2b8;"></i> ${periode}</p>
           </div>
         `,
@@ -787,8 +821,8 @@ export default function Dashboard() {
       console.error('Excel error:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Failed',
-        text: 'An error occurred while downloading Excel',
+        title: '❌ FAILED',
+        text: 'AN ERROR OCCURRED WHILE DOWNLOADING EXCEL',
         background: '#1a1a1a',
         color: 'white'
       });
@@ -798,20 +832,20 @@ export default function Dashboard() {
   // DOWNLOAD PDF
   async function downloadPDF() {
     const result = await Swal.fire({
-      title: '📄 Download PDF',
+      title: '📄 DOWNLOAD PDF',
       html: `
         <div style="text-align: left">
-          <p style="color: #fff; margin-bottom: 16px;">Select data period:</p>
+          <p style="color: #fff; margin-bottom: 16px;">SELECT DATA PERIOD:</p>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="all" checked style="cursor: pointer;"> 
               <i class="fas fa-database" style="color: #8b3a3a;"></i>
-              All Records (${filteredItems.length} records)
+              ALL RECORDS (${filteredItems.length} RECORDS)
             </label>
             <label style="display: flex; align-items: center; gap: 10px; color: #ccc; padding: 8px; background: #222; border-radius: 8px; cursor: pointer;">
               <input type="radio" name="period" value="month" style="cursor: pointer;"> 
               <i class="fas fa-calendar-alt" style="color: #28a745;"></i>
-              This Month Only
+              THIS MONTH ONLY
             </label>
           </div>
         </div>
@@ -819,8 +853,8 @@ export default function Dashboard() {
       showCancelButton: true,
       confirmButtonColor: '#8b3a3a',
       cancelButtonColor: '#2a2a2a',
-      confirmButtonText: 'Download',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: 'DOWNLOAD',
+      cancelButtonText: 'CANCEL',
       background: '#1a1a1a',
       color: 'white',
       preConfirm: () => {
@@ -847,8 +881,8 @@ export default function Dashboard() {
       if (dataToDownload.length === 0) {
         Swal.fire({
           icon: 'info',
-          title: 'No Data',
-          text: 'No records for this month',
+          title: 'NO DATA',
+          text: 'NO RECORDS FOR THIS MONTH',
           background: '#1a1a1a',
           color: 'white'
         });
@@ -873,17 +907,17 @@ export default function Dashboard() {
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80);
       doc.setFont('helvetica', 'normal');
-      doc.text('BNF Material Control - Follow Up System', 15, 18);
+      doc.text('BNF MATERIAL CONTROL - FOLLOW UP SYSTEM', 15, 18);
       
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
       
       const today = new Date();
       const periode = period === 'month'
-        ? `Period: ${today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-        : `Period: All Records`;
-      const generated = `Generated: ${today.toLocaleDateString('en-US')} ${today.toLocaleTimeString('en-US')}`;
-      const totalData = `Total Records: ${dataToDownload.length}`;
+        ? `PERIOD: ${today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}`
+        : `PERIOD: ALL RECORDS`;
+      const generated = `GENERATED: ${today.toLocaleDateString('en-US').toUpperCase()} ${today.toLocaleTimeString('en-US')}`;
+      const totalData = `TOTAL RECORDS: ${dataToDownload.length}`;
       
       doc.text(periode, 15, 24);
       doc.text(generated, 15, 28);
@@ -894,26 +928,26 @@ export default function Dashboard() {
       doc.line(15, 35, 280, 35);
       
       const tableColumn = [
-        'No', 'PLAN', 'DENSO PN', 'Part Name', 'L/I', 'Supplier', 'Description',
-        'Issued Date', 'Time', 'Action', 'Due Date', 'PIC', 'Note', 'Images', 'Status'
+        'NO', 'PLANT', 'DENSO PN', 'PART NAME', 'L/I', 'SUPPLIER NAME', 'DESCRIPTION',
+        'ISSUED DATE', 'TIME', 'ACTION', 'DUE DATE', 'PIC', 'NOTE', 'IMAGES', 'STATUS'
       ];
       
       const tableRows = dataToDownload.map((item, index) => [
         index + 1,
-        item.plan || '-',
+        item.plant || '-',
         item.denso_pn,
         item.part_name || '-',
         item.local_import,
         item.supplier_name || '-',
         item.description,
-        formatDateOnly(item.timing_date_time),
-        formatTimeOnly(item.timing_date_time),
+        formatDateOnly(item.issued_date_time),
+        formatTimeOnly(item.issued_date_time),
         item.action || '-',
         formatDateOnly(item.due_date_max),
         item.pic || '-',
         item.note_remark || '-',
-        item.images ? 'Yes' : '-',
-        item.status
+        item.images && item.images.length > 0 ? `${item.images.length} IMG` : '-',
+        item.status.toUpperCase()
       ]);
       
       autoTable(doc, {
@@ -937,7 +971,7 @@ export default function Dashboard() {
           10: { cellWidth: 15 },
           11: { cellWidth: 15 },
           12: { cellWidth: 25 },
-          13: { cellWidth: 12 },
+          13: { cellWidth: 15 },
           14: { cellWidth: 15 }
         }
       });
@@ -945,14 +979,14 @@ export default function Dashboard() {
       const month = (today.getMonth() + 1).toString().padStart(2, '0');
       const fileName = period === 'month'
         ? `BNF_${today.getFullYear()}${month}.pdf`
-        : `BNF_All_${today.getFullYear()}${month}${today.getDate().toString().padStart(2, '0')}.pdf`;
+        : `BNF_ALL_${today.getFullYear()}${month}${today.getDate().toString().padStart(2, '0')}.pdf`;
       
       doc.save(fileName);
       
       Swal.fire({
         icon: 'success',
-        title: '✅ PDF Success',
-        html: `<p><i class="fas fa-file-pdf" style="color: #dc3545;"></i> File: ${fileName}</p>`,
+        title: '✅ PDF SUCCESS',
+        html: `<p><i class="fas fa-file-pdf" style="color: #dc3545;"></i> FILE: ${fileName}</p>`,
         timer: 2000,
         showConfirmButton: false,
         background: '#1a1a1a',
@@ -963,13 +997,21 @@ export default function Dashboard() {
       console.error('PDF error:', error);
       Swal.fire({
         icon: 'error',
-        title: '❌ Failed',
-        text: 'An error occurred while downloading PDF',
+        title: '❌ FAILED',
+        text: 'AN ERROR OCCURRED WHILE DOWNLOADING PDF',
         background: '#1a1a1a',
         color: 'white'
       });
     }
   }
+
+  // NAVIGATE TO PAGE
+  const navigateTo = (path: string) => {
+    if (menuModalRef.current) {
+      menuModalRef.current.hide();
+    }
+    router.push(path);
+  };
 
   // LOADING
   if (loading) {
@@ -983,9 +1025,9 @@ export default function Dashboard() {
       }}>
         <div className="text-center">
           <div className="spinner-border text-danger mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
-            <span className="visually-hidden">Loading...</span>
+            <span className="visually-hidden">LOADING...</span>
           </div>
-          <div style={{ color: '#aaa' }}>Loading data...</div>
+          <div style={{ color: '#aaa' }}>LOADING DATA...</div>
         </div>
       </div>
     );
@@ -993,263 +1035,147 @@ export default function Dashboard() {
 
   // RENDER
   return (
-    <div style={{ background: '#000000', minHeight: '100vh', padding: '16px' }}>
-      <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
-        
-        {/* MODAL SELECTOR */}
-        {showSelector && currentUser && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.9)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            animation: 'fadeIn 0.3s ease-out'
-          }}>
-            <style>{`
-              @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-              }
-              @keyframes slideUp {
-                from { transform: translateY(30px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-              }
-            `}</style>
-            
+    <div style={{ background: '#000000', minHeight: '100vh' }}>
+      {/* STICKY HEADER */}
+      <div style={{ 
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        padding: '12px 16px',
+        background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+        borderBottom: '1px solid rgba(139, 58, 58, 0.3)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+      }}>
+        <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Left side */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
-              background: '#1a1a1a',
-              border: '2px solid #8b3a3a',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '90%',
-              textAlign: 'center',
-              animation: 'slideUp 0.4s ease-out',
-              boxShadow: '0 20px 40px rgba(139,58,58,0.3)'
+              width: '40px',
+              height: '40px',
+              background: '#8b3a3a',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              color: 'white'
             }}>
-              <div style={{
-                width: '80px',
-                height: '80px',
-                background: '#8b3a3a',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 20px',
-                fontSize: '32px',
-                color: 'white',
-                border: '3px solid #c44a4a'
-              }}>
-                <i className={`fas ${currentUser.role === 'master' ? 'fa-crown' : 'fa-user'}`}></i>
-              </div>
-
-              <h2 style={{ color: 'white', fontSize: '24px', margin: '0 0 4px 0' }}>
-                Hi, {currentUser.name}!
-              </h2>
-              
-              <p style={{
-                color: '#aaa',
-                fontSize: '13px',
-                marginBottom: '24px',
-                padding: '4px 12px',
-                background: currentUser.role === 'master' ? '#8b3a3a20' : '#17a2b820',
-                borderRadius: '20px',
-                display: 'inline-block'
-              }}>
-                {currentUser.role === 'master' ? '👑 Master' : '👤 Staff'}
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <button
-                  onClick={() => {
-                    setShowSelector(false);
-                    router.push('/');
-                  }}
-                  style={{
-                    background: '#8b3a3a',
-                    border: 'none',
-                    color: 'white',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    transition: '0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#a54545'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#8b3a3a'}
-                >
-                  <i className="fas fa-pen-alt"></i>
-                  BNF Form
-                </button>
-                
-                <button
-                  onClick={() => setShowSelector(false)}
-                  style={{
-                    background: '#2a2a2a',
-                    border: '1px solid #404040',
-                    color: 'white',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    transition: '0.2s'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#333'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#404040'; }}
-                >
-                  <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                  Dashboard
-                </button>
-
-                {currentUser?.role === 'master' && (
-                  <button
-                    onClick={() => {
-                      setShowSelector(false);
-                      router.push('/users');
-                    }}
-                    style={{
-                      background: '#17a2b8',
-                      border: 'none',
-                      color: 'white',
-                      padding: '14px',
-                      borderRadius: '12px',
-                      fontSize: '15px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '10px',
-                      transition: '0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#138496'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#17a2b8'}
-                  >
-                    <i className="fas fa-users-cog"></i>
-                    User Management
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={handleLogout}
-                style={{
-                  marginTop: '16px',
-                  background: 'none',
-                  border: '1px solid #404040',
-                  color: '#666',
-                  padding: '10px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  transition: '0.2s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ff6b6b'; e.currentTarget.style.borderColor = '#ff6b6b'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#404040'; }}
-              >
-                <i className="fas fa-sign-out-alt me-2"></i>
-                Switch Account
-              </button>
+              <i className="fas fa-clipboard-list"></i>
             </div>
-          </div>
-        )}
-
-        {/* HEADER */}
-        <div style={{ 
-          background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
-          padding: '20px 24px',
-          borderRadius: '16px',
-          marginBottom: '20px',
-          border: '1px solid rgba(139, 58, 58, 0.3)'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px'
-          }}>
+            
             <div>
               <h1 style={{ 
-                fontSize: '24px',
+                fontSize: '18px',
                 fontWeight: 700,
                 color: 'white',
-                margin: '0 0 4px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
+                margin: 0
               }}>
-                <i className="fas fa-clipboard-list" style={{ color: '#ffa5a5' }}></i>
-                BNF DASHBOARD
+                BNF DASHBOARD - Material Control
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0 }}>
-                <i className="far fa-clock me-1"></i>Last Update: {lastUpdate || '-'}
-                <span style={{ marginLeft: '16px' }}>
-                  <i className="fas fa-user me-1"></i>
-                  {currentUser?.name} ({currentUser?.role})
-                </span>
+              <p style={{ color: '#aaa', fontSize: '10px', margin: '2px 0 0 0' }}>
+                <i className="far fa-clock me-1"></i>LAST UPDATE: {lastUpdate || '-'}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => setShowSelector(true)}
+          </div>
+
+          {/* Right side - hanya logout */}
+          <div style={{ position: 'relative' }}>
+            <div 
+              className="dropdown"
+              style={{ cursor: 'pointer' }}
+            >
+              <div 
+                data-bs-toggle="dropdown"
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '4px 8px 4px 4px',
+                  borderRadius: '40px',
+                  border: '1px solid #8b3a3a'
+                }}
+              >
+                <div style={{
+                  width: '32px',
+                  height: '32px',
                   background: '#8b3a3a',
-                  border: 'none',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  fontWeight: 500
-                }}
-              >
-                <i className="fas fa-th-large"></i>
-                Menu
-              </button>
-              
-              <button
-                onClick={handleLogout}
-                style={{
-                  background: '#2a2a2a',
-                  border: '1px solid #404040',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontWeight: 500
-                }}
-              >
-                <i className="fas fa-sign-out-alt"></i>
-                Logout
-              </button>
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  color: 'white'
+                }}>
+                  <i className={`fas ${currentUser.role === 'master' ? 'fa-crown' : 'fa-user'}`}></i>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ color: 'white', fontSize: '12px', fontWeight: 500 }}>{currentUser.name}</div>
+                </div>
+                <i className="fas fa-chevron-down" style={{ color: '#aaa', fontSize: '10px', marginRight: '4px' }}></i>
+              </div>
+
+              {/* DROPDOWN CANTIK - HANYA LOGOUT */}
+              <ul className="dropdown-menu dropdown-menu-end" style={{ 
+                background: '#1a1a1a', 
+                border: '1px solid #8b3a3a',
+                borderRadius: '16px',
+                padding: '8px',
+                minWidth: '200px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                marginTop: '8px'
+              }}>
+                <li>
+                  <div
+                    onClick={handleLogout}
+                    style={{
+                      padding: '14px 20px',
+                      color: '#ff6b6b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      fontSize: '14px',
+                      fontWeight: 500
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#2a2a2a';
+                      e.currentTarget.style.color = '#ff8a8a';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#ff6b6b';
+                    }}
+                  >
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      background: 'rgba(255, 107, 107, 0.1)',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <i className="fas fa-sign-out-alt"></i>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>Logout</div>
+                      <div style={{ fontSize: '11px', color: '#888' }}>Sign out from account</div>
+                    </div>
+                    <i className="fas fa-arrow-right" style={{ fontSize: '12px', opacity: 0.7 }}></i>
+                  </div>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
+      </div>
 
+      {/* MAIN CONTENT */}
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
+        
         {/* CHART + STATS SECTION */}
         <div style={{
           display: 'grid',
@@ -1281,11 +1207,11 @@ export default function Dashboard() {
                   gap: '8px'
                 }}>
                   <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                  7-Day Performance Trend
+                  7-DAY PERFORMANCE TREND
                 </h4>
                 <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
                   <i className="far fa-calendar-alt me-1"></i>
-                  {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
                 </p>
               </div>
             </div>
@@ -1317,21 +1243,21 @@ export default function Dashboard() {
                   <Bar 
                     dataKey="open" 
                     fill="#ffc107" 
-                    name="Open"
+                    name="OPEN"
                     radius={[4, 4, 0, 0]}
                     barSize={16}
                   />
                   <Bar 
                     dataKey="progress" 
                     fill="#17a2b8" 
-                    name="In Progress"
+                    name="IN PROGRESS"
                     radius={[4, 4, 0, 0]}
                     barSize={16}
                   />
                   <Bar 
                     dataKey="closed" 
                     fill="#28a745" 
-                    name="Closed"
+                    name="CLOSED"
                     radius={[4, 4, 0, 0]}
                     barSize={16}
                   />
@@ -1369,8 +1295,8 @@ export default function Dashboard() {
                   <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
                 </div>
                 <div>
-                  <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>Summary</span>
-                  <div style={{ color: '#666', fontSize: '11px' }}>Live overview</div>
+                  <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>SUMMARY</span>
+                  <div style={{ color: '#666', fontSize: '11px' }}>LIVE OVERVIEW</div>
                 </div>
               </div>
               <div style={{
@@ -1381,7 +1307,7 @@ export default function Dashboard() {
               }}>
                 <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
                   <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
-                  Live
+                  LIVE
                 </span>
               </div>
             </div>
@@ -1394,7 +1320,7 @@ export default function Dashboard() {
               marginBottom: '4px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ color: '#aaa', fontSize: '12px' }}>Completion Rate</span>
+                <span style={{ color: '#aaa', fontSize: '12px' }}>COMPLETION RATE</span>
                 <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
                   {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
                 </span>
@@ -1415,8 +1341,8 @@ export default function Dashboard() {
                 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
-                <span>Closed: {stats.closed}</span>
-                <span>Total: {stats.total}</span>
+                <span>CLOSED: {stats.closed}</span>
+                <span>TOTAL: {stats.total}</span>
               </div>
             </div>
 
@@ -1451,7 +1377,7 @@ export default function Dashboard() {
                     <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>Open</div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>OPEN</div>
                     <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
                   </div>
                 </div>
@@ -1482,7 +1408,7 @@ export default function Dashboard() {
                     <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>Progress</div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>IN PROGRESS</div>
                     <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
                   </div>
                 </div>
@@ -1513,7 +1439,7 @@ export default function Dashboard() {
                     <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>Closed</div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>CLOSED</div>
                     <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
                   </div>
                 </div>
@@ -1544,7 +1470,7 @@ export default function Dashboard() {
                     <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>Total</div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>TOTAL</div>
                     <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
                   </div>
                 </div>
@@ -1557,40 +1483,40 @@ export default function Dashboard() {
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Status</label>
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>STATUS</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="all">All Status</option>
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Closed">Closed</option>
+                <option value="all">ALL STATUS</option>
+                <option value="Open">OPEN</option>
+                <option value="In Progress">IN PROGRESS</option>
+                <option value="Closed">CLOSED</option>
               </select>
             </div>
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>PIC</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={picFilter} onChange={(e) => setPicFilter(e.target.value)}>
-                <option value="all">All PIC</option>
+                <option value="all">ALL PIC</option>
                 {picOptions.map(pic => <option key={pic} value={pic}>{pic}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Plan</label>
-              <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
-                <option value="all">All Plan</option>
-                {planOptions.map(plan => <option key={plan} value={plan}>{plan}</option>)}
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>PLANT</label>
+              <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={plantFilter} onChange={(e) => setPlantFilter(e.target.value)}>
+                <option value="all">ALL PLANT</option>
+                {plantOptions.map(plant => <option key={plant} value={plant}>{plant}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Due Date</label>
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>DUE DATE</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={dueFilter} onChange={(e) => setDueFilter(e.target.value)}>
-                <option value="all">All</option>
-                <option value="overdue">Overdue</option>
-                <option value="warning">Warning (≤3 days)</option>
-                <option value="safe">Safe</option>
+                <option value="all">ALL</option>
+                <option value="overdue">OVERDUE</option>
+                <option value="warning">WARNING (≤3 DAYS)</option>
+                <option value="safe">SAFE</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>Search</label>
-              <input type="text" placeholder="PN, Part, Description..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: '100%', background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}/>
+              <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>SEARCH</label>
+              <input type="text" placeholder="PN, PART, DESCRIPTION..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: '100%', background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}/>
             </div>
           </div>
         </div>
@@ -1614,7 +1540,7 @@ export default function Dashboard() {
           }}>
             <h5 style={{ color: 'white', margin: 0, fontSize: '16px' }}>
               <i className="fas fa-list-ul me-2" style={{ color: '#c44a4a' }}></i>
-              BNF Records List
+              BNF RECORDS LIST
             </h5>
             
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1632,7 +1558,7 @@ export default function Dashboard() {
                   justifyContent: 'center'
                 }}
                 onClick={downloadExcel} 
-                title="Download Excel"
+                title="DOWNLOAD EXCEL"
               >
                 <i className="fas fa-file-excel"></i>
               </button>
@@ -1651,7 +1577,7 @@ export default function Dashboard() {
                   justifyContent: 'center'
                 }}
                 onClick={downloadPDF} 
-                title="Download PDF"
+                title="DOWNLOAD PDF"
               >
                 <i className="fas fa-file-pdf"></i>
               </button>
@@ -1674,21 +1600,21 @@ export default function Dashboard() {
             }}>
               <thead>
                 <tr style={{ background: '#2a2a2a' }}>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '40px' }}>No</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '80px' }}>PLAN</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '40px' }}>NO</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '80px' }}>PLANT</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>PART NAME</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Supplier</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>Description</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>Issued Timing</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>Action</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Due Date</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>SUPPLIER NAME</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>DESCRIPTION</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>ISSUED DATE</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>ACTION</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DUE DATE</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Note</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '80px' }}>Images</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>Status</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Actions</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>NOTE</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>IMAGES</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>STATUS</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>OPTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -1701,7 +1627,7 @@ export default function Dashboard() {
                       border: '1px solid #404040'
                     }}>
                       <i className="fas fa-folder-open" style={{ fontSize: '40px', marginBottom: '16px', color: '#8b3a3a' }}></i>
-                      <p>No Records Found</p>
+                      <p>NO RECORDS FOUND</p>
                     </td>
                   </tr>
                 ) : (
@@ -1721,21 +1647,21 @@ export default function Dashboard() {
                       statusText = 'white';
                     }
 
-                    // Warna untuk PLAN
-                    let planColor = '';
-                    let planBg = '';
-                    if (item.plan === 'FAJAR') {
-                      planColor = '#ffc107';
-                      planBg = '#ffc10720';
-                    } else if (item.plan === 'BEKASI') {
-                      planColor = '#17a2b8';
-                      planBg = '#17a2b820';
-                    } else if (item.plan === 'SIP') {
-                      planColor = '#28a745';
-                      planBg = '#28a74520';
+                    // Warna untuk PLANT
+                    let plantColor = '';
+                    let plantBg = '';
+                    if (item.plant === 'FAJAR') {
+                      plantColor = '#ffc107';
+                      plantBg = '#ffc10720';
+                    } else if (item.plant === 'BEKASI') {
+                      plantColor = '#17a2b8';
+                      plantBg = '#17a2b820';
+                    } else if (item.plant === 'SIP') {
+                      plantColor = '#28a745';
+                      plantBg = '#28a74520';
                     } else {
-                      planColor = '#8b3a3a';
-                      planBg = '#8b3a3a20';
+                      plantColor = '#8b3a3a';
+                      plantBg = '#8b3a3a20';
                     }
                     
                     return (
@@ -1743,17 +1669,17 @@ export default function Dashboard() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <span style={{
-                            background: planBg,
-                            color: planColor,
+                            background: plantBg,
+                            color: plantColor,
                             padding: '6px 12px',
                             borderRadius: '20px',
                             fontSize: '12px',
                             fontWeight: 600,
                             display: 'inline-block',
                             minWidth: '70px',
-                            border: `1px solid ${planColor}40`
+                            border: `1px solid ${plantColor}40`
                           }}>
-                            {item.plan || '-'}
+                            {item.plant || '-'}
                           </span>
                         </td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.denso_pn}</td>
@@ -1766,11 +1692,11 @@ export default function Dashboard() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                               <i className="far fa-calendar-alt" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
-                              <span>{formatDateOnly(item.timing_date_time)}</span>
+                              <span>{formatDateOnly(item.issued_date_time)}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                               <i className="far fa-clock" style={{ fontSize: '10px', color: '#8b3a3a' }}></i>
-                              <span style={{ fontSize: '11px', color: '#ccc' }}>{formatTimeOnly(item.timing_date_time)}</span>
+                              <span style={{ fontSize: '11px', color: '#ccc' }}>{formatTimeOnly(item.issued_date_time)}</span>
                             </div>
                           </div>
                         </td>
@@ -1792,11 +1718,11 @@ export default function Dashboard() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
                         
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
-                          {item.images ? (
+                          {item.images && item.images.length > 0 ? (
                             <button
-                              onClick={() => openImageModal(item.images!)}
+                              onClick={() => openGallery(item.images!)}
                               style={{
-                                background: '#17a2b8',
+                                background: '#00449c',
                                 border: 'none',
                                 color: 'white',
                                 padding: '6px 10px',
@@ -1809,8 +1735,8 @@ export default function Dashboard() {
                                 margin: '0 auto'
                               }}
                             >
-                              <i className="fas fa-image"></i>
-                              View
+                              <i className="fas fa-images"></i>
+                              {item.images.length} views
                             </button>
                           ) : (
                             <span style={{ color: '#666', fontSize: '11px' }}>-</span>
@@ -1821,14 +1747,14 @@ export default function Dashboard() {
                           <span style={{ 
                             background: statusColor,
                             color: statusText,
-                            padding: '6px 12px',
-                            borderRadius: '20px',
+                            padding: '3px 6px',
+                            borderRadius: '10px',
                             fontSize: '12px',
                             fontWeight: 600,
                             display: 'inline-block',
                             minWidth: '90px'
                           }}>
-                            {item.status}
+                            {item.status.toUpperCase()}
                           </span>
                         </td>
                         
@@ -1849,7 +1775,7 @@ export default function Dashboard() {
                               onClick={() => canEdit(item) && openEditModal(item)}
                               disabled={!canEdit(item)}
                             >
-                              <i className="fas fa-edit me-1"></i> Edit
+                              <i className="fas fa-edit me-1"></i> EDIT
                             </button>
                             <button 
                               style={{ 
@@ -1866,12 +1792,12 @@ export default function Dashboard() {
                               onClick={() => canDelete(item) && deleteItem(item.id)}
                               disabled={!canDelete(item)}
                             >
-                              <i className="fas fa-trash me-1"></i> Delete
+                              <i className="fas fa-trash me-1"></i> DELETE
                             </button>
                           </div>
                           {item.status === 'Closed' && (
                             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
-                              <i className="fas fa-lock"></i> Locked
+                              <i className="fas fa-lock"></i> LOCKED
                             </div>
                           )}
                         </td>
@@ -1896,7 +1822,7 @@ export default function Dashboard() {
               gap: '12px'
             }}>
               <div>
-                {startIndex + 1} - {Math.min(endIndex, filteredItems.length)} of {filteredItems.length}
+                {startIndex + 1} - {Math.min(endIndex, filteredItems.length)} OF {filteredItems.length}
               </div>
               
               <div style={{ display: 'flex', gap: '5px' }}>
@@ -1913,7 +1839,7 @@ export default function Dashboard() {
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  PREVIOUS
                 </button>
                 
                 <span style={{ 
@@ -1938,11 +1864,250 @@ export default function Dashboard() {
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  NEXT
                 </button>
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* FLOATING MENU BUTTON - POJOK KANAN BAWAH */}
+      <button
+        onClick={openMenuModal}
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '60px',
+          height: '60px',
+          borderRadius: '30px',
+          background: '#8b3a3a',
+          border: 'none',
+          color: 'white',
+          fontSize: '24px',
+          cursor: 'pointer',
+          boxShadow: '0 4px 15px rgba(139,58,58,0.5)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#a54545';
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#8b3a3a';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <i className="fas fa-bars"></i>
+      </button>
+
+      {/* MENU MODAL */}
+      <div className="modal fade" id="menuModal" tabIndex={-1} data-bs-backdrop="static">
+        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '350px' }}>
+          <div className="modal-content" style={{ 
+            background: '#1a1a1a', 
+            border: '2px solid #8b3a3a',
+            borderRadius: '24px',
+            overflow: 'hidden'
+          }}>
+            <div className="modal-header" style={{ 
+              background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+              border: 'none',
+              padding: '20px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#8b3a3a',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <i className="fas fa-bars" style={{ color: 'white', fontSize: '18px' }}></i>
+                </div>
+                <div>
+                  <h5 className="modal-title text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
+                    MENU NAVIGATION
+                  </h5>
+                  <p style={{ color: '#aaa', fontSize: '11px', margin: '2px 0 0 0' }}>
+                    {currentUser?.name} ({currentUser?.role})
+                  </p>
+                </div>
+              </div>
+              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" style={{ opacity: 0.8 }}></button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  onClick={() => navigateTo('/')}
+                  style={{
+                    background: '#222',
+                    border: '1px solid #333',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    transition: 'all 0.2s',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2a2a2a';
+                    e.currentTarget.style.borderColor = '#8b3a3a';
+                    e.currentTarget.style.transform = 'translateX(5px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#222';
+                    e.currentTarget.style.borderColor = '#333';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    background: '#8b3a3a',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <i className="fas fa-pen-alt" style={{ color: 'white', fontSize: '16px' }}></i>
+                  </div>
+                  <div style={{ textAlign: 'left', flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>BNF Form</div>
+                    <div style={{ color: '#888', fontSize: '11px' }}>Add new BNF record</div>
+                  </div>
+                  <i className="fas fa-arrow-right" style={{ color: '#8b3a3a' }}></i>
+                </button>
+
+                <button
+                  onClick={() => navigateTo('/dashboard')}
+                  style={{
+                    background: '#222',
+                    border: '1px solid #333',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    transition: 'all 0.2s',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2a2a2a';
+                    e.currentTarget.style.borderColor = '#8b3a3a';
+                    e.currentTarget.style.transform = 'translateX(5px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#222';
+                    e.currentTarget.style.borderColor = '#333';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    background: '#17a2b8',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <i className="fas fa-chart-bar" style={{ color: 'white', fontSize: '16px' }}></i>
+                  </div>
+                  <div style={{ textAlign: 'left', flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>Dashboard</div>
+                    <div style={{ color: '#888', fontSize: '11px' }}>View analytics & data</div>
+                  </div>
+                  <i className="fas fa-arrow-right" style={{ color: '#17a2b8' }}></i>
+                </button>
+
+                {currentUser?.role === 'master' && (
+                  <button
+                    onClick={() => navigateTo('/users')}
+                    style={{
+                      background: '#222',
+                      border: '1px solid #333',
+                      color: 'white',
+                      padding: '16px',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      transition: 'all 0.2s',
+                      width: '100%'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#2a2a2a';
+                      e.currentTarget.style.borderColor = '#8b3a3a';
+                      e.currentTarget.style.transform = 'translateX(5px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#222';
+                      e.currentTarget.style.borderColor = '#333';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      background: '#28a745',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <i className="fas fa-users-cog" style={{ color: 'white', fontSize: '16px' }}></i>
+                    </div>
+                    <div style={{ textAlign: 'left', flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px' }}>User Management</div>
+                      <div style={{ color: '#888', fontSize: '11px' }}>Manage staff accounts</div>
+                    </div>
+                    <i className="fas fa-arrow-right" style={{ color: '#28a745' }}></i>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ 
+              borderTop: '1px solid #333',
+              padding: '16px 20px',
+              background: '#151515',
+              justifyContent: 'center'
+            }}>
+              <button 
+                type="button" 
+                className="btn" 
+                style={{ 
+                  background: '#2a2a2a', 
+                  border: '1px solid #404040', 
+                  color: 'white',
+                  padding: '10px 24px',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  width: '100%'
+                }} 
+                data-bs-dismiss="modal"
+              >
+                <i className="fas fa-times me-2"></i>
+                CLOSE MENU
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1973,7 +2138,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h5 className="modal-title text-white" style={{ fontSize: '18px', fontWeight: 600 }}>
-                    Update BNF Record
+                    UPDATE BNF RECORD
                   </h5>
                   <p style={{ color: '#aaa', fontSize: '12px', margin: '4px 0 0 0' }}>
                     {selectedItem?.denso_pn} - {selectedItem?.part_name}
@@ -2011,7 +2176,7 @@ export default function Dashboard() {
                         fontSize: '13px',
                         resize: 'vertical'
                       }}
-                      placeholder="Write the action taken..."
+                      placeholder="WRITE THE ACTION TAKEN..."
                     />
                   </div>
 
@@ -2056,7 +2221,7 @@ export default function Dashboard() {
                         fontSize: '13px',
                         width: '100%'
                       }}
-                      placeholder="Person in charge"
+                      placeholder="PERSON IN CHARGE"
                     />
                   </div>
                 </div>
@@ -2084,23 +2249,23 @@ export default function Dashboard() {
                     >
                       {selectedItem?.status === 'Open' && (
                         <>
-                          <option value="Open">🔴 Open</option>
-                          <option value="In Progress">🟡 In Progress</option>
+                          <option value="Open">🔴 OPEN</option>
+                          <option value="In Progress">🟡 IN PROGRESS</option>
                           {currentUser?.role === 'master' && (
-                            <option value="Closed">🟢 Closed</option>
+                            <option value="Closed">🟢 CLOSED</option>
                           )}
                         </>
                       )}
                       {selectedItem?.status === 'In Progress' && (
                         <>
-                          <option value="In Progress">🟡 In Progress</option>
+                          <option value="In Progress">🟡 IN PROGRESS</option>
                           {currentUser?.role === 'master' && (
-                            <option value="Closed">🟢 Closed</option>
+                            <option value="Closed">🟢 CLOSED</option>
                           )}
                         </>
                       )}
                       {selectedItem?.status === 'Closed' && (
-                        <option value="Closed">🟢 Closed</option>
+                        <option value="Closed">🟢 CLOSED</option>
                       )}
                     </select>
                     
@@ -2115,7 +2280,7 @@ export default function Dashboard() {
                         color: '#ffc107'
                       }}>
                         <i className="fas fa-crown me-1"></i>
-                        Only MASTER can change status to CLOSED
+                        ONLY MASTER CAN CHANGE STATUS TO CLOSED
                       </div>
                     )}
                     
@@ -2130,7 +2295,7 @@ export default function Dashboard() {
                         color: '#28a745'
                       }}>
                         <i className="fas fa-lock me-1"></i>
-                        Closed records cannot be modified
+                        CLOSED RECORDS CANNOT BE MODIFIED
                       </div>
                     )}
                   </div>
@@ -2154,7 +2319,7 @@ export default function Dashboard() {
                         fontSize: '13px',
                         resize: 'vertical'
                       }}
-                      placeholder="Additional notes..."
+                      placeholder="ADDITIONAL NOTES..."
                     />
                   </div>
                 </div>
@@ -2174,7 +2339,7 @@ export default function Dashboard() {
               }}>
                 <i className="fas fa-clock" style={{ color: '#8b3a3a' }}></i>
                 <span>
-                  Created: {selectedItem ? new Date(selectedItem.created_at).toLocaleString('en-US') : '-'}
+                  CREATED: {selectedItem ? new Date(selectedItem.created_at).toLocaleString('en-US').toUpperCase() : '-'}
                 </span>
               </div>
             </div>
@@ -2199,7 +2364,7 @@ export default function Dashboard() {
                 data-bs-dismiss="modal"
               >
                 <i className="fas fa-times me-2"></i>
-                Cancel
+                CANCEL
               </button>
               <button 
                 type="button" 
@@ -2222,94 +2387,274 @@ export default function Dashboard() {
                 disabled={selectedItem?.status === 'Closed'}
               >
                 <i className="fas fa-save"></i>
-                Save Changes
+                SAVE CHANGES
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* IMAGE MODAL */}
-      <div className="modal fade" id="imageModal" tabIndex={-1}>
-        <div className="modal-dialog modal-lg modal-dialog-centered">
-          <div className="modal-content" style={{ 
-            background: '#1a1a1a', 
-            border: '2px solid #8b3a3a',
-            borderRadius: '16px'
-          }}>
-            <div className="modal-header" style={{ 
-              background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
-              border: 'none',
-              padding: '16px 24px'
-            }}>
-              <h5 className="modal-title text-white">
-                <i className="fas fa-image me-2" style={{ color: '#c44a4a' }}></i>
-                Image Viewer
-              </h5>
-              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div className="modal-body" style={{ padding: '24px', textAlign: 'center' }}>
-              {selectedImage ? (
+{/* GALLERY MODAL - with slide navigation & keyboard support */}
+<div className="modal fade" id="galleryModal" tabIndex={-1}>
+  <div className="modal-dialog modal-lg modal-dialog-centered">
+    <div className="modal-content" style={{ 
+      background: '#1a1a1a', 
+      border: '2px solid #8b3a3a',
+      borderRadius: '16px'
+    }}>
+      <div className="modal-header" style={{ 
+        background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+        border: 'none',
+        padding: '16px 24px'
+      }}>
+        <h5 className="modal-title text-white">
+          <i className="fas fa-images me-2" style={{ color: '#c44a4a' }}></i>
+          IMAGE GALLERY ({selectedImages.length} PHOTOS)
+        </h5>
+        <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div className="modal-body" style={{ padding: '24px' }}>
+        {selectedImages.length > 0 ? (
+          <div>
+            {/* Main Image with Navigation */}
+            <div 
+              style={{ 
+                position: 'relative', 
+                marginBottom: '20px',
+                minHeight: '400px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#0a0a0a',
+                borderRadius: '8px',
+                padding: '20px'
+              }}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  setCurrentImageIndex(prev => 
+                    prev === 0 ? selectedImages.length - 1 : prev - 1
+                  );
+                } else if (e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  setCurrentImageIndex(prev => 
+                    prev === selectedImages.length - 1 ? 0 : prev + 1
+                  );
+                }
+              }}
+            >
+              {/* Previous Button */}
+              {selectedImages.length > 1 && (
+                <button
+                  onClick={() => setCurrentImageIndex(prev => 
+                    prev === 0 ? selectedImages.length - 1 : prev - 1
+                  )}
+                  style={{
+                    position: 'absolute',
+                    left: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '20px',
+                    background: 'rgba(0,0,0,0.7)',
+                    border: '2px solid #8b3a3a',
+                    color: 'white',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#8b3a3a';
+                    e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
+                    e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                  }}
+                >
+                  <i className="fas fa-chevron-left"></i>
+                </button>
+              )}
+
+              {/* Image Container - Center alignment */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                minHeight: '350px'
+              }}>
                 <img 
-                  src={selectedImage} 
-                  alt="BNF Image" 
+                  src={selectedImages[currentImageIndex]?.url} 
+                  alt={`Image ${currentImageIndex + 1}`}
                   style={{ 
                     maxWidth: '100%', 
-                    maxHeight: '500px',
+                    maxHeight: '400px',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain',
                     borderRadius: '8px',
                     border: '1px solid #333'
                   }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
-                    target.parentElement!.innerHTML = `
-                      <div style="padding: 40px; color: #666;">
-                        <i class="fas fa-image-slash" style="font-size: 48px; margin-bottom: 16px;"></i>
-                        <p>Image failed to load</p>
-                      </div>
-                    `;
+                    const parent = target.parentElement;
+                    if (parent) {
+                      const errorDiv = document.createElement('div');
+                      errorDiv.style.padding = '40px';
+                      errorDiv.style.color = '#666';
+                      errorDiv.style.textAlign = 'center';
+                      errorDiv.innerHTML = '<i class="fas fa-image-slash" style="font-size: 48px; margin-bottom: 16px;"></i><p>IMAGE FAILED TO LOAD</p>';
+                      parent.appendChild(errorDiv);
+                    }
                   }}
                 />
-              ) : (
-                <div style={{ padding: '40px', color: '#666' }}>
-                  <i className="fas fa-image-slash" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-                  <p>No image available</p>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer" style={{ borderTop: '1px solid #333', padding: '16px 24px' }}>
-              <button type="button" className="btn" style={{ 
-                background: '#2a2a2a', 
-                border: '1px solid #404040', 
-                color: 'white',
-                padding: '8px 24px',
-                borderRadius: '8px'
-              }} data-bs-dismiss="modal">
-                Close
-              </button>
-              {selectedImage && (
-                <a 
-                  href={selectedImage} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn"
+              </div>
+
+              {/* Next Button */}
+              {selectedImages.length > 1 && (
+                <button
+                  onClick={() => setCurrentImageIndex(prev => 
+                    prev === selectedImages.length - 1 ? 0 : prev + 1
+                  )}
                   style={{
-                    background: '#8b3a3a',
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '20px',
+                    background: 'rgba(0,0,0,0.7)',
+                    border: '2px solid #8b3a3a',
                     color: 'white',
-                    border: 'none',
-                    padding: '8px 24px',
-                    borderRadius: '8px',
-                    textDecoration: 'none'
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#8b3a3a';
+                    e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
+                    e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
                   }}
                 >
-                  <i className="fas fa-external-link-alt me-2"></i>
-                  Open Original
-                </a>
+                  <i className="fas fa-chevron-right"></i>
+                </button>
               )}
+
             </div>
+
+            {/* CAPTION - DI BAWAH GAMBAR (TIDAK OVERLAY) */}
+            {selectedImages[currentImageIndex]?.caption && (
+              <div style={{
+                marginTop: '16px',
+                marginBottom: '20px',
+                padding: '12px 20px',
+                background: '#222',
+                borderRadius: '12px',
+                color: '#ccc',
+                fontSize: '14px',
+                textAlign: 'center',
+                border: '1px solid #333',
+                width: '100%'
+              }}>
+                <i className="fas fa-quote-right me-2" style={{ color: '#8b3a3a' }}></i>
+                {selectedImages[currentImageIndex].caption}
+              </div>
+            )}
+
+            {/* Thumbnails */}
+            {selectedImages.length > 1 && (
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                overflowX: 'auto',
+                padding: '10px 0',
+                justifyContent: 'center',
+                marginTop: '10px'
+              }}>
+                {selectedImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    style={{
+                      cursor: 'pointer',
+                      border: idx === currentImageIndex ? '2px solid #8b3a3a' : '2px solid transparent',
+                      borderRadius: '6px',
+                      padding: '2px',
+                      background: idx === currentImageIndex ? '#8b3a3a20' : 'transparent'
+                    }}
+                  >
+                    <img 
+                      src={img.url} 
+                      alt={`Thumb ${idx + 1}`}
+                      style={{
+                        width: '60px',
+                        height: '60px',
+                        objectFit: 'cover',
+                        borderRadius: '4px',
+                        border: '1px solid #333'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+            <i className="fas fa-image-slash" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
+            <p>NO IMAGES AVAILABLE</p>
+          </div>
+        )}
       </div>
+      <div className="modal-footer" style={{ borderTop: '1px solid #333', padding: '16px 24px' }}>
+        <button type="button" className="btn" style={{ 
+          background: '#2a2a2a', 
+          border: '1px solid #404040', 
+          color: 'white',
+          padding: '8px 24px',
+          borderRadius: '8px'
+        }} data-bs-dismiss="modal">
+          CLOSE
+        </button>
+        {selectedImages.length > 0 && (
+          <a 
+            href={selectedImages[currentImageIndex]?.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="btn"
+            style={{
+              background: '#8b3a3a',
+              color: 'white',
+              border: 'none',
+              padding: '8px 24px',
+              borderRadius: '8px',
+              textDecoration: 'none'
+            }}
+          >
+            <i className="fas fa-external-link-alt me-2"></i>
+            OPEN ORIGINAL
+          </a>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
     </div>
   );
 }
