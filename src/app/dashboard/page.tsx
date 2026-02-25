@@ -1176,315 +1176,320 @@ async function saveUpdate() {
       {/* MAIN CONTENT */}
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
         
-        {/* CHART + STATS SECTION - DENGAN HORIZONTAL SCROLL UNTUK MOBILE */}
+      {/* CHART + STATS SECTION - DENGAN HORIZONTAL SCROLL UNTUK MOBILE */}
+      <div style={{
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        marginBottom: '20px',
+        borderRadius: '16px'
+      }}>
         <div style={{
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch', // buat scrolling smooth di iOS
-          marginBottom: '20px',
-          borderRadius: '16px'
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr',
+          gap: '20px',
+          minWidth: '1000px', // Biar muat chart 600px + summary 400px
         }}>
+          
+          {/* LEFT: CHART */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr',
-            gap: '20px',
-            minWidth: '800px', // ← INI PENTING! Minimal lebar 800px
+            background: '#1a1a1a',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '1px solid #333'
           }}>
-            
-            {/* LEFT: CHART */}
             <div style={{
-              background: '#1a1a1a',
-              borderRadius: '16px',
-              padding: '20px',
-              border: '1px solid #333'
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
             }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px'
-              }}>
-                <div>
-                  <h4 style={{
-                    color: 'white',
-                    margin: '0 0 4px 0',
-                    fontSize: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                    7-DAY PERFORMANCE TREND
-                  </h4>
-                  <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
-                    <i className="far fa-calendar-alt me-1"></i>
-                    {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ width: '100%', height: '280px' }}>
-                <ResponsiveContainer>
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#aaa"
-                      tick={{ fill: '#aaa', fontSize: 11 }}
-                      axisLine={{ stroke: '#404040' }}
-                    />
-                    <YAxis 
-                      stroke="#aaa"
-                      tick={{ fill: '#aaa', fontSize: 11 }}
-                      axisLine={{ stroke: '#404040' }}
-                    />
-                    <Legend 
-                      wrapperStyle={{ 
-                        color: 'white', 
-                        paddingTop: '15px',
-                        fontSize: '12px'
-                      }}
-                      iconType="circle"
-                      iconSize={8}
-                    />
-                    <Bar 
-                      dataKey="open" 
-                      fill="#ffc107" 
-                      name="OPEN"
-                      radius={[4, 4, 0, 0]}
-                      barSize={16}
-                    />
-                    <Bar 
-                      dataKey="progress" 
-                      fill="#17a2b8" 
-                      name="IN PROGRESS"
-                      radius={[4, 4, 0, 0]}
-                      barSize={16}
-                    />
-                    <Bar 
-                      dataKey="closed" 
-                      fill="#28a745" 
-                      name="CLOSED"
-                      radius={[4, 4, 0, 0]}
-                      barSize={16}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div>
+                <h4 style={{
+                  color: 'white',
+                  margin: '0 0 4px 0',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
+                  7-DAY PERFORMANCE TREND
+                </h4>
+                <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
+                  <i className="far fa-calendar-alt me-1"></i>
+                  {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+                </p>
               </div>
             </div>
 
-            {/* RIGHT: STATS */}
-            <div style={{
-              background: '#1a1a1a',
-              borderRadius: '16px',
-              padding: '20px',
-              border: '1px solid #333',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
+            <div style={{ 
+              width: '100%', 
+              height: '280px',
+              minWidth: '600px' // Chart gak akan mengecil di bawah 600px
             }}>
+              <ResponsiveContainer>
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#aaa"
+                    tick={{ fill: '#aaa', fontSize: 11 }}
+                    axisLine={{ stroke: '#404040' }}
+                    interval={0} // Paksa semua label tampil
+                  />
+                  <YAxis 
+                    stroke="#aaa"
+                    tick={{ fill: '#aaa', fontSize: 11 }}
+                    axisLine={{ stroke: '#404040' }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ 
+                      color: 'white', 
+                      paddingTop: '15px',
+                      fontSize: '12px'
+                    }}
+                    iconType="circle"
+                    iconSize={8}
+                  />
+                  <Bar 
+                    dataKey="open" 
+                    fill="#ffc107" 
+                    name="OPEN"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                  <Bar 
+                    dataKey="progress" 
+                    fill="#17a2b8" 
+                    name="IN PROGRESS"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                  <Bar 
+                    dataKey="closed" 
+                    fill="#28a745" 
+                    name="CLOSED"
+                    radius={[4, 4, 0, 0]}
+                    barSize={16}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* RIGHT: STATS */}
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '1px solid #333',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
+                }}>
+                  <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
+                </div>
+                <div>
+                  <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>SUMMARY</span>
+                  <div style={{ color: '#666', fontSize: '11px' }}>LIVE OVERVIEW</div>
+                </div>
+              </div>
               <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
+                background: '#222',
+                padding: '4px 8px',
+                borderRadius: '20px',
+                border: '1px solid #333'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
+                  <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
+                  LIVE
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#222',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid #333',
+              marginBottom: '4px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ color: '#aaa', fontSize: '12px' }}>COMPLETION RATE</span>
+                <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
+                  {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
+                </span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: '#2a2a2a',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #28a745, #34ce57)',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
+                <span>CLOSED: {stats.closed}</span>
+                <span>TOTAL: {stats.total}</span>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '10px'
+            }}>
+              
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#ffc107'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
+                    background: '#ffc10720',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
+                    border: '1px solid #ffc10740'
                   }}>
-                    <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
+                    <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
                   </div>
                   <div>
-                    <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>SUMMARY</span>
-                    <div style={{ color: '#666', fontSize: '11px' }}>LIVE OVERVIEW</div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>OPEN</div>
+                    <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
                   </div>
-                </div>
-                <div style={{
-                  background: '#222',
-                  padding: '4px 8px',
-                  borderRadius: '20px',
-                  border: '1px solid #333'
-                }}>
-                  <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
-                    <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
-                    LIVE
-                  </span>
                 </div>
               </div>
 
               <div style={{
                 background: '#222',
                 borderRadius: '12px',
-                padding: '16px',
+                padding: '14px',
                 border: '1px solid #333',
-                marginBottom: '4px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ color: '#aaa', fontSize: '12px' }}>COMPLETION RATE</span>
-                  <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
-                    {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
-                  </span>
-                </div>
-                <div style={{
-                  width: '100%',
-                  height: '8px',
-                  background: '#2a2a2a',
-                  borderRadius: '4px',
-                  overflow: 'hidden'
-                }}>
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#17a2b8'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{
-                    width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #28a745, #34ce57)',
-                    borderRadius: '4px',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
-                  <span>CLOSED: {stats.closed}</span>
-                  <span>TOTAL: {stats.total}</span>
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#17a2b820',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #17a2b840'
+                  }}>
+                    <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>IN PROGRESS</div>
+                    <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
+                  </div>
                 </div>
               </div>
 
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '10px'
-              }}>
-                
-                <div style={{
-                  background: '#222',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  border: '1px solid #333',
-                  transition: '0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#ffc107'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: '#ffc10720',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #ffc10740'
-                    }}>
-                      <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
-                    </div>
-                    <div>
-                      <div style={{ color: '#aaa', fontSize: '11px' }}>OPEN</div>
-                      <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
-                    </div>
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#28a745'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#28a74520',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #28a74540'
+                  }}>
+                    <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>CLOSED</div>
+                    <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
                   </div>
                 </div>
+              </div>
 
-                <div style={{
-                  background: '#222',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  border: '1px solid #333',
-                  transition: '0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#17a2b8'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: '#17a2b820',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #17a2b840'
-                    }}>
-                      <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
-                    </div>
-                    <div>
-                      <div style={{ color: '#aaa', fontSize: '11px' }}>IN PROGRESS</div>
-                      <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
-                    </div>
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '14px',
+                border: '1px solid #333',
+                transition: '0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #8b3a3a30, #8b3a3a10)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #8b3a3a40'
+                  }}>
+                    <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
                   </div>
-                </div>
-
-                <div style={{
-                  background: '#222',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  border: '1px solid #333',
-                  transition: '0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#28a745'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: '#28a74520',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #28a74540'
-                    }}>
-                      <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
-                    </div>
-                    <div>
-                      <div style={{ color: '#aaa', fontSize: '11px' }}>CLOSED</div>
-                      <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  background: '#222',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  border: '1px solid #333',
-                  transition: '0.2s',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: 'linear-gradient(135deg, #8b3a3a30, #8b3a3a10)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #8b3a3a40'
-                    }}>
-                      <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
-                    </div>
-                    <div>
-                      <div style={{ color: '#aaa', fontSize: '11px' }}>TOTAL</div>
-                      <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
-                    </div>
+                  <div>
+                    <div style={{ color: '#aaa', fontSize: '11px' }}>TOTAL</div>
+                    <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>git 
+        </div>
+      </div>
 
         {/* FILTER SECTION */}
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
