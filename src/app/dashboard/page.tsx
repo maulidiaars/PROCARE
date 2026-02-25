@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx (Dashboard)
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -442,7 +441,6 @@ export default function Dashboard() {
   function canUpdate(currentStatus: string, newStatus: string): boolean {
     if (currentStatus === 'Closed') return false;
     
-    // Only master can change status to Closed
     if (newStatus === 'Closed' && currentUser?.role !== 'master') {
       return false;
     }
@@ -452,13 +450,11 @@ export default function Dashboard() {
     return false;
   }
 
-  // CHECK IF USER CAN EDIT
   function canEdit(item: BNFItem): boolean {
     if (item.status === 'Closed') return false;
     return true;
   }
 
-  // CHECK IF USER CAN DELETE
   function canDelete(item: BNFItem): boolean {
     if (item.status === 'Closed') return false;
     return true;
@@ -743,7 +739,7 @@ export default function Dashboard() {
           formatDateOnly(item.due_date_max),
           String(item.pic || '-'),
           String(item.note_remark || '-'),
-          String(item.images || '-'),
+          item.images ? 'Yes' : '-',
           String(item.status || 'Open')
         ]);
       });
@@ -760,7 +756,7 @@ export default function Dashboard() {
       ws['!cols'] = [
         { wch: 5 }, { wch: 8 }, { wch: 15 }, { wch: 25 }, { wch: 8 },
         { wch: 30 }, { wch: 50 }, { wch: 12 }, { wch: 8 }, { wch: 50 },
-        { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 12 }
+        { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 10 }, { wch: 12 }
       ];
       
       XLSX.utils.book_append_sheet(wb, ws, 'BNF Data');
@@ -916,7 +912,7 @@ export default function Dashboard() {
         formatDateOnly(item.due_date_max),
         item.pic || '-',
         item.note_remark || '-',
-        item.images ? 'View' : '-',
+        item.images ? 'Yes' : '-',
         item.status
       ]);
       
@@ -1581,9 +1577,6 @@ export default function Dashboard() {
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
                 <option value="all">All Plan</option>
                 {planOptions.map(plan => <option key={plan} value={plan}>{plan}</option>)}
-                <option value="FAJAR">FAJAR</option>
-                <option value="BEKASI">BEKASI</option>
-                <option value="SIP">SIP</option>
               </select>
             </div>
             <div>
@@ -1682,7 +1675,7 @@ export default function Dashboard() {
               <thead>
                 <tr style={{ background: '#2a2a2a' }}>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '40px' }}>No</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '70px' }}>PLAN</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '80px' }}>PLAN</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DENSO PN</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>Part Name</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '60px' }}>L/I</th>
@@ -1727,22 +1720,38 @@ export default function Dashboard() {
                       statusColor = '#28a745';
                       statusText = 'white';
                     }
+
+                    // Warna untuk PLAN
+                    let planColor = '';
+                    let planBg = '';
+                    if (item.plan === 'FAJAR') {
+                      planColor = '#ffc107';
+                      planBg = '#ffc10720';
+                    } else if (item.plan === 'BEKASI') {
+                      planColor = '#17a2b8';
+                      planBg = '#17a2b820';
+                    } else if (item.plan === 'SIP') {
+                      planColor = '#28a745';
+                      planBg = '#28a74520';
+                    } else {
+                      planColor = '#8b3a3a';
+                      planBg = '#8b3a3a20';
+                    }
                     
                     return (
                       <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <span style={{
-                            background: item.plan === 'FAJAR' ? '#ffc10720' : 
-                                       item.plan === 'BEKASI' ? '#17a2b820' : 
-                                       item.plan === 'SIP' ? '#28a74520' : '#8b3a3a20',
-                            color: item.plan === 'FAJAR' ? '#ffc107' : 
-                                   item.plan === 'BEKASI' ? '#17a2b8' : 
-                                   item.plan === 'SIP' ? '#28a745' : '#8b3a3a',
-                            padding: '4px 8px',
-                            borderRadius: '12px',
+                            background: planBg,
+                            color: planColor,
+                            padding: '6px 12px',
+                            borderRadius: '20px',
                             fontSize: '12px',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            display: 'inline-block',
+                            minWidth: '70px',
+                            border: `1px solid ${planColor}40`
                           }}>
                             {item.plan || '-'}
                           </span>
@@ -1782,31 +1791,31 @@ export default function Dashboard() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
                         
-                      <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
-                        {item.images ? (
-                          <button
-                            onClick={() => openImageModal(item.images)}
-                            style={{
-                              background: '#17a2b8',
-                              border: 'none',
-                              color: 'white',
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              margin: '0 auto'
-                            }}
-                          >
-                            <i className="fas fa-image"></i>
-                            View
-                          </button>
-                        ) : (
-                          <span style={{ color: '#666', fontSize: '11px' }}>-</span>
-                        )}
-                      </td>
+                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
+                          {item.images ? (
+                            <button
+                              onClick={() => openImageModal(item.images!)}
+                              style={{
+                                background: '#17a2b8',
+                                border: 'none',
+                                color: 'white',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                margin: '0 auto'
+                              }}
+                            >
+                              <i className="fas fa-image"></i>
+                              View
+                            </button>
+                          ) : (
+                            <span style={{ color: '#666', fontSize: '11px' }}>-</span>
+                          )}
+                        </td>
                         
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <span style={{ 
@@ -1863,11 +1872,6 @@ export default function Dashboard() {
                           {item.status === 'Closed' && (
                             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
                               <i className="fas fa-lock"></i> Locked
-                            </div>
-                          )}
-                          {item.status !== 'Closed' && editStatus === 'Closed' && currentUser?.role !== 'master' && (
-                            <div style={{ fontSize: '10px', color: '#ffc107', marginTop: '4px' }}>
-                              <i className="fas fa-crown"></i> Master only
                             </div>
                           )}
                         </td>
