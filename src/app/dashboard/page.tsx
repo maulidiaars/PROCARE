@@ -15,7 +15,11 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Label
 } from 'recharts';
 
 declare global {
@@ -45,6 +49,62 @@ type BNFItem = {
   images: ImageItem[] | null;
   created_at: string;
   status: string;
+};
+
+// CUSTOM BAR COMPONENT DENGAN LABEL ANGKA + ISSUED
+const CustomBarWithLabel = (props: any) => {
+  const { fill, x, y, width, height, texture, data, type, index } = props;
+  
+  if (!width || !height || height < 0) return null;
+  
+  // Ambil value sesuai type (open/progress/closed)
+  const value = data && data[index] ? data[index][type] : 0;
+  
+  return (
+    <g>
+      <defs>
+        <pattern id="diagonalPattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(0,0,0,0.3)" strokeWidth="4" />
+        </pattern>
+      </defs>
+      
+      {/* Background color */}
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={fill}
+        stroke="none"
+      />
+      
+      {/* Texture pattern */}
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill="url(#diagonalPattern)"
+        stroke="none"
+      />
+      
+      {/* Label angka - muncul di tengah-tengah bar */}
+      {value > 0 && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="white"
+          fontSize={10}
+          fontWeight={700}
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+        >
+          {value} issued
+        </text>
+      )}
+    </g>
+  );
 };
 
 export default function Dashboard() {
@@ -96,6 +156,17 @@ export default function Dashboard() {
 
   // DATA FOR CHART
   const [chartData, setChartData] = useState<any[]>([]);
+  
+  // DATA FOR PIE CHART
+  const [pieData, setPieData] = useState<any[]>([]);
+  const [currentMonth, setCurrentMonth] = useState('');
+
+  // Warna untuk charts
+  const COLORS = {
+    open: '#FFC107',
+    progress: '#17A2B8',
+    closed: '#28A745'
+  };
 
   // CHECK LOGIN
   useEffect(() => {
@@ -292,7 +363,7 @@ export default function Dashboard() {
         closed
       });
 
-      // UPDATE CHART DATA
+      // UPDATE CHART DATA - LINE CHART untuk performance trend
       const last7Days = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
@@ -300,29 +371,50 @@ export default function Dashboard() {
         
         const dayStr = date.toLocaleDateString('en-US', { 
           weekday: 'short',
-          day: 'numeric',
-          month: 'short'
+          day: 'numeric'
         });
         
-        const dayData = {
-          date: dayStr,
-          open: 0,
-          progress: 0,
-          closed: 0
-        };
+        let openCount = 0, progressCount = 0, closedCount = 0;
 
         dataWithStatus.forEach(item => {
           const itemDate = new Date(item.created_at);
           if (itemDate.toDateString() === date.toDateString()) {
-            if (item.status === 'Open') dayData.open++;
-            else if (item.status === 'In Progress') dayData.progress++;
-            else if (item.status === 'Closed') dayData.closed++;
+            if (item.status === 'Open') openCount++;
+            else if (item.status === 'In Progress') progressCount++;
+            else if (item.status === 'Closed') closedCount++;
           }
         });
 
-        last7Days.push(dayData);
+        last7Days.push({
+          date: dayStr,
+          open: openCount,
+          progress: progressCount,
+          closed: closedCount,
+          total: openCount + progressCount + closedCount
+        });
       }
       setChartData(last7Days);
+
+      // UPDATE PIE CHART DATA - BULAN INI
+      const now = new Date();
+      const currentMonthStr = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      setCurrentMonth(currentMonthStr);
+      
+      const monthData = dataWithStatus.filter(item => {
+        const itemDate = new Date(item.created_at);
+        return itemDate.getMonth() === now.getMonth() && 
+               itemDate.getFullYear() === now.getFullYear();
+      });
+      
+      const monthOpen = monthData.filter(p => p.status === 'Open').length;
+      const monthProgress = monthData.filter(p => p.status === 'In Progress').length;
+      const monthClosed = monthData.filter(p => p.status === 'Closed').length;
+      
+      setPieData([
+        { name: 'OPEN', value: monthOpen, color: COLORS.open },
+        { name: 'IN PROGRESS', value: monthProgress, color: COLORS.progress },
+        { name: 'CLOSED', value: monthClosed, color: COLORS.closed }
+      ].filter(item => item.value > 0));
 
       const pics = [...new Set(dataWithStatus.map(p => p.pic).filter(p => p && p !== '-'))] as string[];
       setPicOptions(pics);
@@ -454,18 +546,15 @@ export default function Dashboard() {
   function canUpdate(currentStatus: string, newStatus: string): boolean {
     if (currentStatus === 'Closed') return false;
     
-    // Staff cannot change to Closed
     if (newStatus === 'Closed' && currentUser?.role !== 'master') {
       return false;
     }
     
     if (currentStatus === 'In Progress') {
-      // In Progress can only go to Closed (and only master can do that)
       return newStatus === 'Closed' && currentUser?.role === 'master';
     }
     
     if (currentStatus === 'Open') {
-      // Open can go to In Progress (anyone) or Closed (master only)
       if (newStatus === 'In Progress') return true;
       if (newStatus === 'Closed') return currentUser?.role === 'master';
     }
@@ -534,114 +623,127 @@ export default function Dashboard() {
     }
   }
 
-// src/app/dashboard/page.tsx (bagian fungsi saveUpdate)
-
-async function saveUpdate() {
-  if (!selectedItem) return;
-  
-  // Validasi hanya field yang diperlukan (action, due date, pic)
-  if (!editAction || !editDueDate || !editPic) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'WARNING',
-      text: 'ACTION, DUE DATE, DAN PIC WAJIB DIISI!',
-      background: '#1a1a1a',
-      color: 'white'
-    });
-    return;
-  }
-
-  // PERBAIKAN: Hapus validasi status wajib
-  // if (!editStatus) {
-  //   Swal.fire({
-  //     icon: 'warning',
-  //     title: 'WARNING',
-  //     text: 'STATUS WAJIB DIPILIH!',
-  //     background: '#1a1a1a',
-  //     color: 'white'
-  //   });
-  //   return;
-  // }
-
-  // Cek hanya kalau user MAU mengubah status
-  if (editStatus && editStatus !== selectedItem.status) {
-    // Kalau mau ubah status, baru cek validasi
-    if (!canUpdate(selectedItem.status, editStatus)) {
-      let message = '';
-      if (selectedItem.status === 'Closed') {
-        message = 'CLOSED RECORDS CANNOT BE MODIFIED!';
-      } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
-        message = 'IN PROGRESS STATUS CAN ONLY BE CHANGED TO CLOSED!';
-      } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
-        message = 'ONLY MASTER USERS CAN CHANGE STATUS TO CLOSED!';
-      } else {
-        message = 'STATUS CHANGE NOT ALLOWED!';
-      }
-      
+  // ========== SAVE UPDATE DENGAN HIGHLIGHT & TOAST ==========
+  async function saveUpdate() {
+    if (!selectedItem) return;
+    
+    if (!editAction || !editDueDate || !editPic) {
       Swal.fire({
-        icon: 'error',
-        title: '❌ NOT ALLOWED',
-        text: message,
+        icon: 'warning',
+        title: 'WARNING',
+        text: 'ACTION, DUE DATE, DAN PIC WAJIB DIISI!',
         background: '#1a1a1a',
         color: 'white'
       });
       return;
     }
-  }
 
-  try {
-    // PERBAIKAN: Buat object update dinamis
-    const updateData: any = {
-      action: editAction,
-      due_date_max: editDueDate,
-      pic: editPic,
-      note_remark: editNote || null
-    };
-
-    // Hanya tambahkan status ke update KALAU DIUBAH
     if (editStatus && editStatus !== selectedItem.status) {
-      updateData.status = editStatus;
+      if (!canUpdate(selectedItem.status, editStatus)) {
+        let message = '';
+        if (selectedItem.status === 'Closed') {
+          message = 'CLOSED RECORDS CANNOT BE MODIFIED!';
+        } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
+          message = 'IN PROGRESS STATUS CAN ONLY BE CHANGED TO CLOSED!';
+        } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
+          message = 'ONLY MASTER USERS CAN CHANGE STATUS TO CLOSED!';
+        } else {
+          message = 'STATUS CHANGE NOT ALLOWED!';
+        }
+        
+        Swal.fire({
+          icon: 'error',
+          title: '❌ NOT ALLOWED',
+          text: message,
+          background: '#1a1a1a',
+          color: 'white'
+        });
+        return;
+      }
     }
-    // Kalau editStatus kosong atau sama, status TIDAK diupdate
 
-    const { error } = await supabase
-      .from('problems')
-      .update(updateData)
-      .eq('id', selectedItem.id);
+    try {
+      const updatedId = selectedItem.id;
+      const scrollPosition = window.scrollY;
+      
+      const updateData: any = {
+        action: editAction,
+        due_date_max: editDueDate,
+        pic: editPic,
+        note_remark: editNote || null
+      };
 
-    if (error) throw error;
-    
-    await Swal.fire({
-      icon: 'success',
-      title: '✅ SUCCESS!',
-      text: editStatus && editStatus !== selectedItem.status 
-        ? 'RECORD UPDATED WITH STATUS CHANGE' 
-        : 'RECORD UPDATED SUCCESSFULLY (STATUS UNCHANGED)',
-      timer: 1500,
-      showConfirmButton: false,
-      background: '#1a1a1a',
-      color: 'white'
-    });
+      if (editStatus && editStatus !== selectedItem.status) {
+        updateData.status = editStatus;
+      }
 
-    if (modalRef.current) {
-      modalRef.current.hide();
+      const { error } = await supabase
+        .from('problems')
+        .update(updateData)
+        .eq('id', selectedItem.id);
+
+      if (error) throw error;
+      
+      await fetchData(true);
+      
+      setTimeout(() => {
+        window.scrollTo({
+          top: scrollPosition,
+          behavior: 'instant'
+        });
+        
+        const updatedRow = document.getElementById(`row-${updatedId}`);
+        if (updatedRow) {
+          updatedRow.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          });
+          
+          updatedRow.classList.add('row-highlight');
+          
+          setTimeout(() => {
+            updatedRow.classList.remove('row-highlight');
+          }, 3000);
+        }
+      }, 100);
+
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.addEventListener('mouseenter', Swal.stopTimer)
+          toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+      });
+
+      await Toast.fire({
+        icon: 'success',
+        title: editStatus && editStatus !== selectedItem.status 
+          ? '✅ Updated + Status Changed!' 
+          : '✅ Updated Successfully!'
+      });
+
+      if (modalRef.current) {
+        modalRef.current.hide();
+      }
+      
+      setSelectedItem(null);
+
+    } catch (error) {
+      console.error('Update error:', error);
+      
+      Swal.fire({
+        icon: 'error',
+        title: '❌ UPDATE FAILED',
+        text: 'AN ERROR OCCURRED',
+        background: '#1a1a1a',
+        color: 'white'
+      });
     }
-    
-    setSelectedItem(null);
-    await fetchData();
-
-  } catch (error) {
-    console.error('Update error:', error);
-    
-    Swal.fire({
-      icon: 'error',
-      title: '❌ UPDATE FAILED',
-      text: 'AN ERROR OCCURRED',
-      background: '#1a1a1a',
-      color: 'white'
-    });
   }
-}
 
   async function deleteItem(id: number) {
     const item = bnfItems.find(p => p.id === id);
@@ -1039,6 +1141,52 @@ async function saveUpdate() {
     router.push(path);
   };
 
+  // CUSTOM TOOLTIP UNTUK LINE CHART
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{
+          background: '#1a1a1a',
+          border: '1px solid #8b3a3a',
+          borderRadius: '8px',
+          padding: '10px',
+          color: 'white'
+        }}>
+          <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ margin: '2px 0', color: entry.color }}>
+              {entry.name}: {entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // CUSTOM LABEL UNTUK PIE - DIPOSISIN TENGAH TIAP SECTION
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5; // POSISI TENGAH-TENGAH
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor="middle" 
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={600}
+        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   // LOADING
   if (loading) {
     return (
@@ -1141,7 +1289,6 @@ async function saveUpdate() {
                 <i className="fas fa-chevron-down" style={{ color: '#aaa', fontSize: '10px', marginRight: '4px' }}></i>
               </div>
 
-              {/* DROPDOWN CANTIK - HANYA LOGOUT */}
               <ul className="dropdown-menu dropdown-menu-end" style={{ 
                 background: '#1a1a1a', 
                 border: '1px solid #8b3a3a',
@@ -1202,320 +1349,314 @@ async function saveUpdate() {
       {/* MAIN CONTENT */}
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
         
-      {/* CHART + STATS SECTION - DENGAN HORIZONTAL SCROLL UNTUK MOBILE */}
-      <div style={{
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        marginBottom: '20px',
-        borderRadius: '16px'
-      }}>
+        {/* CHART + STATS SECTION - VERSI LINE CHART UNTUK PERFORMANCE TREND */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: '20px',
-          minWidth: '1000px', // Biar muat chart 600px + summary 400px
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          marginBottom: '20px',
+          borderRadius: '16px'
         }}>
-          
-          {/* LEFT: CHART */}
           <div style={{
-            background: '#1a1a1a',
-            borderRadius: '16px',
-            padding: '20px',
-            border: '1px solid #333'
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr',
+            gap: '20px',
+            minWidth: '1000px',
           }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <h4 style={{
-                  color: 'white',
-                  margin: '0 0 4px 0',
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                  7-DAY PERFORMANCE TREND
-                </h4>
-                <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
-                  <i className="far fa-calendar-alt me-1"></i>
-                  {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
-                </p>
-              </div>
-            </div>
+            
+{/* LEFT: BAR CHART UNTUK PERFORMANCE TREND */}
+<div style={{
+  background: '#1a1a1a',
+  borderRadius: '16px',
+  padding: '20px',
+  border: '1px solid #333',
+  boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+}}>
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px'
+  }}>
+    <div>
+      <h4 style={{
+        color: 'white',
+        margin: '0 0 4px 0',
+        fontSize: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
+        7-DAY PERFORMANCE TREND
+      </h4>
+      <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
+        <i className="far fa-calendar-alt me-1"></i>
+        {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+      </p>
+    </div>
+    
+  {/* Legend with values - HAPUS ANGKA TOTAL */}
+  <div style={{ display: 'flex', gap: '20px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ 
+        width: '12px', 
+        height: '12px', 
+        background: 'repeating-linear-gradient(45deg, #FFC107, #FFC107 4px, #e6a800 4px, #e6a800 8px)',
+        borderRadius: '3px',
+        boxShadow: '0 0 8px #FFC107'
+      }}></div>
+      <span style={{ color: '#ccc', fontSize: '11px' }}>OPEN</span>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ 
+        width: '12px', 
+        height: '12px', 
+        background: 'repeating-linear-gradient(45deg, #17A2B8, #17A2B8 4px, #138496 4px, #138496 8px)',
+        borderRadius: '3px',
+        boxShadow: '0 0 8px #17A2B8'
+      }}></div>
+      <span style={{ color: '#ccc', fontSize: '11px' }}>IN PROGRESS</span>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ 
+        width: '12px', 
+        height: '12px', 
+        background: 'repeating-linear-gradient(45deg, #28A745, #28A745 4px, #1e7e34 4px, #1e7e34 8px)',
+        borderRadius: '3px',
+        boxShadow: '0 0 8px #28A745'
+      }}></div>
+      <span style={{ color: '#ccc', fontSize: '11px' }}>CLOSED</span>
+    </div>
+  </div>
+  </div>
 
-            <div style={{ 
-              width: '100%', 
-              height: '280px',
-              minWidth: '600px' // Chart gak akan mengecil di bawah 600px
-            }}>
-              <ResponsiveContainer>
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#aaa"
-                    tick={{ fill: '#aaa', fontSize: 11 }}
-                    axisLine={{ stroke: '#404040' }}
-                    interval={0} // Paksa semua label tampil
-                  />
-                  <YAxis 
-                    stroke="#aaa"
-                    tick={{ fill: '#aaa', fontSize: 11 }}
-                    axisLine={{ stroke: '#404040' }}
-                  />
-                  <Legend 
-                    wrapperStyle={{ 
-                      color: 'white', 
-                      paddingTop: '15px',
-                      fontSize: '12px'
-                    }}
-                    iconType="circle"
-                    iconSize={8}
-                  />
-                  <Bar 
-                    dataKey="open" 
-                    fill="#ffc107" 
-                    name="OPEN"
-                    radius={[4, 4, 0, 0]}
-                    barSize={16}
-                  />
-                  <Bar 
-                    dataKey="progress" 
-                    fill="#17a2b8" 
-                    name="IN PROGRESS"
-                    radius={[4, 4, 0, 0]}
-                    barSize={16}
-                  />
-                  <Bar 
-                    dataKey="closed" 
-                    fill="#28a745" 
-                    name="CLOSED"
-                    radius={[4, 4, 0, 0]}
-                    barSize={16}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+  <div style={{ 
+    width: '100%', 
+    height: '350px',
+    minWidth: '600px',
+    position: 'relative'
+  }}>
+    <ResponsiveContainer>
+      <BarChart 
+        data={chartData} 
+        margin={{ top: 30, right: 30, left: 0, bottom: 20 }}
+        barGap={0}
+        barCategoryGap={10}
+      >
+        <CartesianGrid 
+          strokeDasharray="3 3" 
+          stroke="#333" 
+          vertical={false}
+        />
+        
+        <XAxis 
+          dataKey="date" 
+          stroke="#aaa"
+          tick={{ fill: '#ccc', fontSize: 11, fontWeight: 500 }}
+          axisLine={{ stroke: '#404040' }}
+          tickLine={{ stroke: '#404040' }}
+        />
+        
+        <YAxis 
+          stroke="#aaa"
+          tick={{ fill: '#ccc', fontSize: 11 }}
+          axisLine={{ stroke: '#404040' }}
+          tickLine={{ stroke: '#404040' }}
+          allowDecimals={false}
+        />
+        
+        {/* OPEN */}
+        <Bar 
+          dataKey="open" 
+          stackId="a"
+          fill="#FFC107"
+          shape={<CustomBarWithLabel texture="diagonal" color="#FFC107" data={chartData} type="open" />}
+        />
+        
+        {/* IN PROGRESS */}
+        <Bar 
+          dataKey="progress" 
+          stackId="a"
+          fill="#17A2B8"
+          shape={<CustomBarWithLabel texture="diagonal" color="#17A2B8" data={chartData} type="progress" />}
+        />
+        
+        {/* CLOSED */}
+        <Bar 
+          dataKey="closed" 
+          stackId="a"
+          fill="#28A745"
+          shape={<CustomBarWithLabel texture="diagonal" color="#28A745" data={chartData} type="closed" />}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+</div>
 
-          {/* RIGHT: STATS */}
-          <div style={{
-            background: '#1a1a1a',
-            borderRadius: '16px',
-            padding: '20px',
-            border: '1px solid #333',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}>
+            {/* RIGHT: VERTICAL STATS + COMPLETION RATE + PIE CHART */}
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
-                }}>
-                  <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
-                </div>
-                <div>
-                  <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>SUMMARY</span>
-                  <div style={{ color: '#666', fontSize: '11px' }}>LIVE OVERVIEW</div>
-                </div>
-              </div>
-              <div style={{
-                background: '#222',
-                padding: '4px 8px',
-                borderRadius: '20px',
-                border: '1px solid #333'
-              }}>
-                <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
-                  <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
-                  LIVE
-                </span>
-              </div>
-            </div>
-
-            <div style={{
-              background: '#222',
-              borderRadius: '12px',
-              padding: '16px',
+              background: '#1a1a1a',
+              borderRadius: '16px',
+              padding: '20px',
               border: '1px solid #333',
-              marginBottom: '4px'
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ color: '#aaa', fontSize: '12px' }}>COMPLETION RATE</span>
-                <span style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>
-                  {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
-                </span>
-              </div>
+              {/* Header */}
               <div style={{
-                width: '100%',
-                height: '8px',
-                background: '#2a2a2a',
-                borderRadius: '4px',
-                overflow: 'hidden'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #8b3a3a, #c44a4a)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 10px rgba(139,58,58,0.3)'
+                  }}>
+                    <i className="fas fa-chart-pie" style={{ color: 'white', fontSize: '14px' }}></i>
+                  </div>
+                  <div>
+                    <span style={{ color: 'white', fontSize: '14px', fontWeight: 600 }}>SUMMARY</span>
+                    <div style={{ color: '#666', fontSize: '11px' }}>LIVE OVERVIEW</div>
+                  </div>
+                </div>
+                <div style={{
+                  background: '#222',
+                  padding: '4px 8px',
+                  borderRadius: '20px',
+                  border: '1px solid #333'
+                }}>
+                  <span style={{ color: '#8b3a3a', fontSize: '11px', fontWeight: 500 }}>
+                    <i className="fas fa-circle me-1" style={{ fontSize: '6px' }}></i>
+                    LIVE
+                  </span>
+                </div>
+              </div>
+
+              {/* COMPLETION RATE */}
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid #333',
+                marginBottom: '4px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ color: '#aaa', fontSize: '12px' }}>COMPLETION RATE</span>
+                  <span style={{ color: 'white', fontSize: '24px', fontWeight: 700 }}>
+                    {stats.total > 0 ? Math.round((stats.closed / stats.total) * 100) : 0}%
+                  </span>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '10px',
+                  background: '#2a2a2a',
+                  borderRadius: '5px',
+                  overflow: 'hidden',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)'
+                }}>
+                  <div style={{
+                    width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #28a745, #5cb85c)',
+                    borderRadius: '5px',
+                    transition: 'width 0.5s ease',
+                    boxShadow: '0 0 10px rgba(40,167,69,0.5)'
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
+                  <span>CLOSED: {stats.closed}</span>
+                  <span>TOTAL: {stats.total}</span>
+                </div>
+              </div>
+
+              {/* PIE CHART SECTION - DENGAN LABEL DI TENGAH */}
+              <div style={{
+                background: '#222',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid #333',
+                marginTop: '8px'
               }}>
                 <div style={{
-                  width: `${stats.total > 0 ? (stats.closed / stats.total) * 100 : 0}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #28a745, #34ce57)',
-                  borderRadius: '4px',
-                  transition: 'width 0.3s ease'
-                }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: '#666', fontSize: '10px' }}>
-                <span>CLOSED: {stats.closed}</span>
-                <span>TOTAL: {stats.total}</span>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '10px'
-            }}>
-              
-              <div style={{
-                background: '#222',
-                borderRadius: '12px',
-                padding: '14px',
-                border: '1px solid #333',
-                transition: '0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#ffc107'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#ffc10720',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #ffc10740'
-                  }}>
-                    <i className="fas fa-folder-open" style={{ color: '#ffc107', fontSize: '14px' }}></i>
-                  </div>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>OPEN</div>
-                    <div style={{ color: '#ffc107', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.open}</div>
-                  </div>
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <span style={{ color: 'white', fontSize: '13px', fontWeight: 600 }}>
+                    <i className="fas fa-chart-pie me-2" style={{ color: '#8b3a3a' }}></i>
+                    {currentMonth}
+                  </span>
+                  <span style={{ color: '#aaa', fontSize: '11px' }}>
+                    {pieData.reduce((sum, item) => sum + item.value, 0)} total
+                  </span>
                 </div>
-              </div>
 
-              <div style={{
-                background: '#222',
-                borderRadius: '12px',
-                padding: '14px',
-                border: '1px solid #333',
-                transition: '0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#17a2b8'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#17a2b820',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #17a2b840'
-                  }}>
-                    <i className="fas fa-spinner" style={{ color: '#17a2b8', fontSize: '14px' }}></i>
+                {pieData.length > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '120px', height: '120px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={50}
+                            paddingAngle={2}
+                            dataKey="value"
+                            labelLine={false}
+                            label={renderCustomizedLabel}
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      {pieData.map((item, index) => (
+                        <div key={index} style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '6px 0',
+                          borderBottom: index < pieData.length - 1 ? '1px solid #333' : 'none'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '10px', height: '10px', background: item.color, borderRadius: '3px' }}></div>
+                            <span style={{ color: '#ccc', fontSize: '11px' }}>{item.name}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>{item.value}</span>
+                            <span style={{ color: '#666', fontSize: '10px', marginLeft: '4px' }}>
+                              ({((item.value / pieData.reduce((sum, i) => sum + i.value, 0)) * 100).toFixed(0)}%)
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>IN PROGRESS</div>
-                    <div style={{ color: '#17a2b8', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.progress}</div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                    <i className="fas fa-chart-pie" style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.3 }}></i>
+                    <p style={{ fontSize: '12px' }}>No data this month</p>
                   </div>
-                </div>
-              </div>
-
-              <div style={{
-                background: '#222',
-                borderRadius: '12px',
-                padding: '14px',
-                border: '1px solid #333',
-                transition: '0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#28a745'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#28a74520',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #28a74540'
-                  }}>
-                    <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '14px' }}></i>
-                  </div>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>CLOSED</div>
-                    <div style={{ color: '#28a745', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.closed}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                background: '#222',
-                borderRadius: '12px',
-                padding: '14px',
-                border: '1px solid #333',
-                transition: '0.2s',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a2a'; e.currentTarget.style.borderColor = '#8b3a3a'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#222'; e.currentTarget.style.borderColor = '#333'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #8b3a3a30, #8b3a3a10)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #8b3a3a40'
-                  }}>
-                    <i className="fas fa-tasks" style={{ color: '#8b3a3a', fontSize: '14px' }}></i>
-                  </div>
-                  <div>
-                    <div style={{ color: '#aaa', fontSize: '11px' }}>TOTAL</div>
-                    <div style={{ color: 'white', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>{stats.total}</div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
         {/* FILTER SECTION */}
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
@@ -1646,7 +1787,7 @@ async function saveUpdate() {
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>SUPPLIER NAME</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '200px' }}>DESCRIPTION</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '130px' }}>ISSUED DATE</th>
-                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '150px' }}>ACTION</th>
+                  <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '250px' }}>ACTION</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>DUE DATE</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '100px' }}>PIC</th>
                   <th style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040', width: '120px' }}>NOTE</th>
@@ -1685,7 +1826,6 @@ async function saveUpdate() {
                       statusText = 'white';
                     }
 
-                    // Warna untuk PLANT
                     let plantColor = '';
                     let plantBg = '';
                     if (item.plant === 'FAJAR') {
@@ -1703,7 +1843,11 @@ async function saveUpdate() {
                     }
                     
                     return (
-                      <tr key={item.id} style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}>
+                      <tr 
+                        key={item.id} 
+                        id={`row-${item.id}`}
+                        style={{ background: index % 2 === 0 ? '#1a1a1a' : '#222' }}
+                      >
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{rowIndex}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <span style={{
@@ -1724,7 +1868,17 @@ async function saveUpdate() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.part_name || '-'}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
-                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.description}</td>
+                        
+                        {/* DESCRIPTION - DENGAN white-space: pre-line UNTUK BULLET POINT */}
+                        <td style={{ 
+                          padding: '12px 4px', 
+                          textAlign: 'left', 
+                          border: '1px solid #404040',
+                          whiteSpace: 'pre-line',
+                          lineHeight: '1.5'
+                        }}>
+                          {item.description}
+                        </td>
                         
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1739,7 +1893,16 @@ async function saveUpdate() {
                           </div>
                         </td>
                         
-                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.action || '-'}</td>
+                        {/* ACTION - DENGAN white-space: pre-line UNTUK BULLET POINT */}
+                        <td style={{ 
+                          padding: '12px 4px', 
+                          textAlign: 'left', 
+                          border: '1px solid #404040',
+                          whiteSpace: 'pre-line',
+                          lineHeight: '1.5'
+                        }}>
+                          {item.action || '-'}
+                        </td>
                         
                         <td 
                           style={{ 
@@ -1910,7 +2073,7 @@ async function saveUpdate() {
         </div>
       </div>
 
-      {/* FLOATING MENU BUTTON - POJOK KANAN BAWAH */}
+      {/* FLOATING MENU BUTTON */}
       <button
         onClick={openMenuModal}
         style={{
@@ -2269,7 +2432,7 @@ async function saveUpdate() {
                   <div>
                     <label style={{ color: '#ccc', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <i className="fas fa-info-circle" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
-                      STATUS <span style={{ color: '#dc3545' }}>*</span>
+                      STATUS
                     </label>
                     <select 
                       className="form-select"
@@ -2307,35 +2470,10 @@ async function saveUpdate() {
                       )}
                     </select>
                     
-                    {selectedItem?.status === 'In Progress' && editStatus === 'Closed' && currentUser?.role !== 'master' && (
-                      <div style={{
-                        marginTop: '8px',
-                        padding: '8px 12px',
-                        background: 'rgba(255, 193, 7, 0.1)',
-                        border: '1px solid rgba(255, 193, 7, 0.3)',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        color: '#ffc107'
-                      }}>
-                        <i className="fas fa-crown me-1"></i>
-                        ONLY MASTER CAN CHANGE STATUS TO CLOSED
-                      </div>
-                    )}
-                    
-                    {selectedItem?.status === 'Closed' && (
-                      <div style={{
-                        marginTop: '8px',
-                        padding: '8px 12px',
-                        background: 'rgba(40, 167, 69, 0.1)',
-                        border: '1px solid rgba(40, 167, 69, 0.3)',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        color: '#28a745'
-                      }}>
-                        <i className="fas fa-lock me-1"></i>
-                        CLOSED RECORDS CANNOT BE MODIFIED
-                      </div>
-                    )}
+                    <p style={{ color: '#aaa', fontSize: '11px', marginTop: '6px' }}>
+                      <i className="fas fa-info-circle me-1"></i>
+                      Kosongkan jika tidak ingin mengubah status
+                    </p>
                   </div>
 
                   <div>
@@ -2432,267 +2570,266 @@ async function saveUpdate() {
         </div>
       </div>
 
-{/* GALLERY MODAL - with slide navigation & keyboard support */}
-<div className="modal fade" id="galleryModal" tabIndex={-1}>
-  <div className="modal-dialog modal-lg modal-dialog-centered">
-    <div className="modal-content" style={{ 
-      background: '#1a1a1a', 
-      border: '2px solid #8b3a3a',
-      borderRadius: '16px'
-    }}>
-      <div className="modal-header" style={{ 
-        background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
-        border: 'none',
-        padding: '16px 24px'
-      }}>
-        <h5 className="modal-title text-white">
-          <i className="fas fa-images me-2" style={{ color: '#c44a4a' }}></i>
-          IMAGE GALLERY ({selectedImages.length} PHOTOS)
-        </h5>
-        <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div className="modal-body" style={{ padding: '24px' }}>
-        {selectedImages.length > 0 ? (
-          <div>
-            {/* Main Image with Navigation */}
-            <div 
-              style={{ 
-                position: 'relative', 
-                marginBottom: '20px',
-                minHeight: '400px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#0a0a0a',
-                borderRadius: '8px',
-                padding: '20px'
-              }}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowLeft') {
-                  e.preventDefault();
-                  setCurrentImageIndex(prev => 
-                    prev === 0 ? selectedImages.length - 1 : prev - 1
-                  );
-                } else if (e.key === 'ArrowRight') {
-                  e.preventDefault();
-                  setCurrentImageIndex(prev => 
-                    prev === selectedImages.length - 1 ? 0 : prev + 1
-                  );
-                }
-              }}
-            >
-              {/* Previous Button */}
-              {selectedImages.length > 1 && (
-                <button
-                  onClick={() => setCurrentImageIndex(prev => 
-                    prev === 0 ? selectedImages.length - 1 : prev - 1
-                  )}
-                  style={{
-                    position: 'absolute',
-                    left: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '20px',
-                    background: 'rgba(0,0,0,0.7)',
-                    border: '2px solid #8b3a3a',
-                    color: 'white',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 10,
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#8b3a3a';
-                    e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
-                    e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                  }}
-                >
-                  <i className="fas fa-chevron-left"></i>
-                </button>
-              )}
-
-              {/* Image Container - Center alignment */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                minHeight: '350px'
-              }}>
-                <img 
-                  src={selectedImages[currentImageIndex]?.url} 
-                  alt={`Image ${currentImageIndex + 1}`}
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: '400px',
-                    width: 'auto',
-                    height: 'auto',
-                    objectFit: 'contain',
-                    borderRadius: '8px',
-                    border: '1px solid #333'
-                  }}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const parent = target.parentElement;
-                    if (parent) {
-                      const errorDiv = document.createElement('div');
-                      errorDiv.style.padding = '40px';
-                      errorDiv.style.color = '#666';
-                      errorDiv.style.textAlign = 'center';
-                      errorDiv.innerHTML = '<i class="fas fa-image-slash" style="font-size: 48px; margin-bottom: 16px;"></i><p>IMAGE FAILED TO LOAD</p>';
-                      parent.appendChild(errorDiv);
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Next Button */}
-              {selectedImages.length > 1 && (
-                <button
-                  onClick={() => setCurrentImageIndex(prev => 
-                    prev === selectedImages.length - 1 ? 0 : prev + 1
-                  )}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '20px',
-                    background: 'rgba(0,0,0,0.7)',
-                    border: '2px solid #8b3a3a',
-                    color: 'white',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 10,
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#8b3a3a';
-                    e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
-                    e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                  }}
-                >
-                  <i className="fas fa-chevron-right"></i>
-                </button>
-              )}
-
+      {/* GALLERY MODAL */}
+      <div className="modal fade" id="galleryModal" tabIndex={-1}>
+        <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-content" style={{ 
+            background: '#1a1a1a', 
+            border: '2px solid #8b3a3a',
+            borderRadius: '16px'
+          }}>
+            <div className="modal-header" style={{ 
+              background: 'linear-gradient(135deg, #2c0b0b 0%, #4a1a1a 100%)',
+              border: 'none',
+              padding: '16px 24px'
+            }}>
+              <h5 className="modal-title text-white">
+                <i className="fas fa-images me-2" style={{ color: '#c44a4a' }}></i>
+                IMAGE GALLERY ({selectedImages.length} PHOTOS)
+              </h5>
+              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
-            {/* CAPTION - DI BAWAH GAMBAR (TIDAK OVERLAY) */}
-            {selectedImages[currentImageIndex]?.caption && (
-              <div style={{
-                marginTop: '16px',
-                marginBottom: '20px',
-                padding: '12px 20px',
-                background: '#222',
-                borderRadius: '12px',
-                color: '#ccc',
-                fontSize: '14px',
-                textAlign: 'center',
-                border: '1px solid #333',
-                width: '100%'
-              }}>
-                <i className="fas fa-quote-right me-2" style={{ color: '#8b3a3a' }}></i>
-                {selectedImages[currentImageIndex].caption}
-              </div>
-            )}
-
-            {/* Thumbnails */}
-            {selectedImages.length > 1 && (
-              <div style={{
-                display: 'flex',
-                gap: '10px',
-                overflowX: 'auto',
-                padding: '10px 0',
-                justifyContent: 'center',
-                marginTop: '10px'
-              }}>
-                {selectedImages.map((img, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => setCurrentImageIndex(idx)}
-                    style={{
-                      cursor: 'pointer',
-                      border: idx === currentImageIndex ? '2px solid #8b3a3a' : '2px solid transparent',
-                      borderRadius: '6px',
-                      padding: '2px',
-                      background: idx === currentImageIndex ? '#8b3a3a20' : 'transparent'
+            <div className="modal-body" style={{ padding: '24px' }}>
+              {selectedImages.length > 0 ? (
+                <div>
+                  {/* Main Image with Navigation */}
+                  <div 
+                    style={{ 
+                      position: 'relative', 
+                      marginBottom: '20px',
+                      minHeight: '400px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#0a0a0a',
+                      borderRadius: '8px',
+                      padding: '20px'
+                    }}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        setCurrentImageIndex(prev => 
+                          prev === 0 ? selectedImages.length - 1 : prev - 1
+                        );
+                      } else if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        setCurrentImageIndex(prev => 
+                          prev === selectedImages.length - 1 ? 0 : prev + 1
+                        );
+                      }
                     }}
                   >
-                    <img 
-                      src={img.url} 
-                      alt={`Thumb ${idx + 1}`}
-                      style={{
-                        width: '60px',
-                        height: '60px',
-                        objectFit: 'cover',
-                        borderRadius: '4px',
-                        border: '1px solid #333'
-                      }}
-                    />
+                    {/* Previous Button */}
+                    {selectedImages.length > 1 && (
+                      <button
+                        onClick={() => setCurrentImageIndex(prev => 
+                          prev === 0 ? selectedImages.length - 1 : prev - 1
+                        )}
+                        style={{
+                          position: 'absolute',
+                          left: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '20px',
+                          background: 'rgba(0,0,0,0.7)',
+                          border: '2px solid #8b3a3a',
+                          color: 'white',
+                          fontSize: '20px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 10,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#8b3a3a';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                        }}
+                      >
+                        <i className="fas fa-chevron-left"></i>
+                      </button>
+                    )}
+
+                    {/* Image Container */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      minHeight: '350px'
+                    }}>
+                      <img 
+                        src={selectedImages[currentImageIndex]?.url} 
+                        alt={`Image ${currentImageIndex + 1}`}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '400px',
+                          width: 'auto',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          borderRadius: '8px',
+                          border: '1px solid #333'
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.style.padding = '40px';
+                            errorDiv.style.color = '#666';
+                            errorDiv.style.textAlign = 'center';
+                            errorDiv.innerHTML = '<i class="fas fa-image-slash" style="font-size: 48px; margin-bottom: 16px;"></i><p>IMAGE FAILED TO LOAD</p>';
+                            parent.appendChild(errorDiv);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Next Button */}
+                    {selectedImages.length > 1 && (
+                      <button
+                        onClick={() => setCurrentImageIndex(prev => 
+                          prev === selectedImages.length - 1 ? 0 : prev + 1
+                        )}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '20px',
+                          background: 'rgba(0,0,0,0.7)',
+                          border: '2px solid #8b3a3a',
+                          color: 'white',
+                          fontSize: '20px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 10,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#8b3a3a';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(0,0,0,0.7)';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                        }}
+                      >
+                        <i className="fas fa-chevron-right"></i>
+                      </button>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {/* CAPTION */}
+                  {selectedImages[currentImageIndex]?.caption && (
+                    <div style={{
+                      marginTop: '16px',
+                      marginBottom: '20px',
+                      padding: '12px 20px',
+                      background: '#222',
+                      borderRadius: '12px',
+                      color: '#ccc',
+                      fontSize: '14px',
+                      textAlign: 'center',
+                      border: '1px solid #333',
+                      width: '100%'
+                    }}>
+                      <i className="fas fa-quote-right me-2" style={{ color: '#8b3a3a' }}></i>
+                      {selectedImages[currentImageIndex].caption}
+                    </div>
+                  )}
+
+                  {/* Thumbnails */}
+                  {selectedImages.length > 1 && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '10px',
+                      overflowX: 'auto',
+                      padding: '10px 0',
+                      justifyContent: 'center',
+                      marginTop: '10px'
+                    }}>
+                      {selectedImages.map((img, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setCurrentImageIndex(idx)}
+                          style={{
+                            cursor: 'pointer',
+                            border: idx === currentImageIndex ? '2px solid #8b3a3a' : '2px solid transparent',
+                            borderRadius: '6px',
+                            padding: '2px',
+                            background: idx === currentImageIndex ? '#8b3a3a20' : 'transparent'
+                          }}
+                        >
+                          <img 
+                            src={img.url} 
+                            alt={`Thumb ${idx + 1}`}
+                            style={{
+                              width: '60px',
+                              height: '60px',
+                              objectFit: 'cover',
+                              borderRadius: '4px',
+                              border: '1px solid #333'
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                  <i className="fas fa-image-slash" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
+                  <p>NO IMAGES AVAILABLE</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ borderTop: '1px solid #333', padding: '16px 24px' }}>
+              <button type="button" className="btn" style={{ 
+                background: '#2a2a2a', 
+                border: '1px solid #404040', 
+                color: 'white',
+                padding: '8px 24px',
+                borderRadius: '8px'
+              }} data-bs-dismiss="modal">
+                CLOSE
+              </button>
+              {selectedImages.length > 0 && (
+                <a 
+                  href={selectedImages[currentImageIndex]?.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{
+                    background: '#8b3a3a',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 24px',
+                    borderRadius: '8px',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <i className="fas fa-external-link-alt me-2"></i>
+                  OPEN ORIGINAL
+                </a>
+              )}
+            </div>
           </div>
-        ) : (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-            <i className="fas fa-image-slash" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-            <p>NO IMAGES AVAILABLE</p>
-          </div>
-        )}
+        </div>
       </div>
-      <div className="modal-footer" style={{ borderTop: '1px solid #333', padding: '16px 24px' }}>
-        <button type="button" className="btn" style={{ 
-          background: '#2a2a2a', 
-          border: '1px solid #404040', 
-          color: 'white',
-          padding: '8px 24px',
-          borderRadius: '8px'
-        }} data-bs-dismiss="modal">
-          CLOSE
-        </button>
-        {selectedImages.length > 0 && (
-          <a 
-            href={selectedImages[currentImageIndex]?.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="btn"
-            style={{
-              background: '#8b3a3a',
-              color: 'white',
-              border: 'none',
-              padding: '8px 24px',
-              borderRadius: '8px',
-              textDecoration: 'none'
-            }}
-          >
-            <i className="fas fa-external-link-alt me-2"></i>
-            OPEN ORIGINAL
-          </a>
-        )}
-      </div>
-    </div>
-  </div>
-</div>
     </div>
   );
 }
