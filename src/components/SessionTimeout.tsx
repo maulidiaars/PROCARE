@@ -1,3 +1,5 @@
+// src/components/SessionTimeout.tsx
+
 "use client";
 
 import { useEffect, useRef } from 'react';
@@ -6,142 +8,150 @@ import Swal from 'sweetalert2';
 
 export default function SessionTimeout({ timeoutMinutes = 5 }: { timeoutMinutes?: number }) {
   const router = useRouter();
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const warningRef = useRef<NodeJS.Timeout>();
-  const timerIntervalRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // ← PERBAIKAN: kasih null
+  const warningRef = useRef<NodeJS.Timeout | null>(null); // ← PERBAIKAN: kasih null
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // ← PERBAIKAN: kasih null
 
-  const logout = () => {
-    // Bersihkan semua timer
+  const resetTimer = () => {
+    // Clear semua timer yang ada
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (warningRef.current) clearTimeout(warningRef.current);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    
-    localStorage.removeItem('currentUser');
-    router.push('/login');
-  };
 
-  const showWarning = () => {
-    Swal.fire({
-      title: '⏰ SESSION AKAN BERAKHIR',
-      html: `
-        <div style="text-align: center">
-          <i class="fas fa-clock" style="font-size: 48px; color: #ffc107; margin-bottom: 16px;"></i>
-          <p style="font-size: 16px; margin-bottom: 8px; color: white;">Anda tidak aktif selama 5 menit</p>
-          <p style="color: #ffc107; font-size: 18px; font-weight: bold; margin-bottom: 16px;">
-            ⏳ <span id="countdown">60</span> detik
-          </p>
-          <p style="color: #aaa; font-size: 13px;">Klik "Tetap Login" untuk melanjutkan sesi</p>
-        </div>
-      `,
-      timer: 60000, // 1 menit
-      timerProgressBar: true,
-      showConfirmButton: true,
-      confirmButtonText: '✅ Tetap Login',
-      confirmButtonColor: '#8b3a3a',
-      showCancelButton: false,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      background: '#1a1a1a',
-      color: 'white',
-      didOpen: () => {
-        const countdownEl = document.getElementById('countdown');
-        if (countdownEl) {
-          timerIntervalRef.current = setInterval(() => {
-            const timeLeft = Swal.getTimerLeft();
-            if (timeLeft) {
-              countdownEl.textContent = Math.ceil(timeLeft / 1000).toString();
-            }
-          }, 100);
-        }
-      },
-      willClose: () => {
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-        resetTimer();
-      }
-    }).then((result) => {
-      if (result.dismiss === Swal.DismissReason.timer) {
-        // Logout otomatis setelah 1 menit
-        Swal.fire({
-          title: '🔒 SESSION BERAKHIR',
-          html: `
-            <div style="text-align: center">
-              <i class="fas fa-sign-out-alt" style="font-size: 48px; color: #8b3a3a; margin-bottom: 16px;"></i>
-              <p style="color: white; margin-bottom: 8px;">Anda telah logout karena tidak ada aktivitas</p>
-              <p style="color: #aaa; font-size: 13px;">Silakan login kembali</p>
+    // Set warning muncul 1 menit sebelum timeout
+    const warningTime = (timeoutMinutes - 1) * 60 * 1000;
+    const logoutTime = timeoutMinutes * 60 * 1000;
+
+    // Timer untuk warning
+    warningRef.current = setTimeout(() => {
+      let timerLeft = 60; // 60 detik countdown
+      
+      Swal.fire({
+        title: '⚠️ SESSION EXPIRING',
+        html: `
+          <div style="text-align: center">
+            <p style="color: #ffc107; margin-bottom: 16px; font-size: 16px;">
+              <i class="fas fa-clock"></i> Your session will expire in:
+            </p>
+            <div style="
+              background: #2a2a2a;
+              border-radius: 50%;
+              width: 100px;
+              height: 100px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 16px;
+              border: 3px solid #8b3a3a;
+            ">
+              <span id="timer" style="
+                color: #ffc107;
+                font-size: 36px;
+                font-weight: 700;
+              ">60</span>
             </div>
-          `,
+            <p style="color: #aaa; font-size: 13px;">
+              Click "Extend Session" to continue working
+            </p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#8b3a3a',
+        cancelButtonColor: '#2a2a2a',
+        confirmButtonText: '🔋 EXTEND SESSION',
+        cancelButtonText: '🚪 LOGOUT NOW',
+        background: '#1a1a1a',
+        color: 'white',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          // Update timer setiap detik
+          timerIntervalRef.current = setInterval(() => {
+            timerLeft -= 1;
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+              timerElement.textContent = timerLeft.toString();
+            }
+
+            if (timerLeft <= 0) {
+              clearInterval(timerIntervalRef.current!);
+            }
+          }, 1000);
+        }
+      }).then((result) => {
+        clearInterval(timerIntervalRef.current!);
+        
+        if (result.isConfirmed) {
+          // Extend session - reset timer
+          resetTimer();
+        } else {
+          // Logout
+          localStorage.removeItem('currentUser');
+          router.push('/login');
+          
+          Swal.fire({
+            icon: 'info',
+            title: 'Logged Out',
+            text: 'Your session has ended',
+            timer: 1500,
+            showConfirmButton: false,
+            background: '#1a1a1a',
+            color: 'white'
+          });
+        }
+      });
+    }, warningTime);
+
+    // Timer untuk auto logout
+    timeoutRef.current = setTimeout(() => {
+      // Cek apakah user masih login
+      const userData = localStorage.getItem('currentUser');
+      if (userData) {
+        localStorage.removeItem('currentUser');
+        
+        Swal.fire({
           icon: 'info',
+          title: 'Session Expired',
+          text: 'You have been logged out due to inactivity',
           timer: 2000,
           showConfirmButton: false,
           background: '#1a1a1a',
           color: 'white'
         }).then(() => {
-          logout();
+          router.push('/login');
         });
       }
-    });
-  };
-
-  const resetTimer = () => {
-    // Hapus timer yang lama
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (warningRef.current) clearTimeout(warningRef.current);
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-    // Cek apakah user masih login
-    const userData = localStorage.getItem('currentUser');
-    if (!userData) return;
-
-    // Set timer baru
-    const warningTime = (timeoutMinutes * 60 * 1000) - 60000; // 1 menit sebelum habis
-    const logoutTime = timeoutMinutes * 60 * 1000;
-
-    warningRef.current = setTimeout(showWarning, warningTime);
-    timeoutRef.current = setTimeout(logout, logoutTime);
-    
-    console.log(`Timer reset: warning in ${warningTime/1000}s, logout in ${logoutTime/1000}s`); // DEBUG
+    }, logoutTime);
   };
 
   useEffect(() => {
-    // Event yang dianggap sebagai "aktivitas"
-    const events = [
-      'mousedown', 'keydown', 'scroll', 'mousemove', 
-      'touchstart', 'click', 'wheel'
-    ];
+    // Event listener untuk aktivitas user
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
     
     const handleActivity = () => {
-      console.log('Activity detected!'); // DEBUG
       resetTimer();
     };
 
-    // Cek login status
-    const userData = localStorage.getItem('currentUser');
-    if (!userData) {
-      console.log('No user logged in'); // DEBUG
-      return;
-    }
+    // Setup timer awal
+    resetTimer();
 
-    console.log('Session timeout initialized'); // DEBUG
-
-    // Reset timer setiap ada aktivitas
+    // Add event listeners
     events.forEach(event => {
       window.addEventListener(event, handleActivity);
     });
 
-    // Set timer pertama kali
-    resetTimer();
-
     // Cleanup
     return () => {
-      console.log('Cleaning up session timeout'); // DEBUG
       events.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
+      
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (warningRef.current) clearTimeout(warningRef.current);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [timeoutMinutes]);
+  }, [timeoutMinutes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return null; // Komponen ini gak render apa-apa
+  return null; // Component ini tidak render apa-apa
 }
