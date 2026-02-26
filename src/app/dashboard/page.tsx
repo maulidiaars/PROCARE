@@ -534,55 +534,79 @@ export default function Dashboard() {
     }
   }
 
+// src/app/dashboard/page.tsx (bagian fungsi saveUpdate)
+
 async function saveUpdate() {
   if (!selectedItem) return;
   
-  if (!editAction || !editDueDate || !editPic || !editStatus) {
+  // Validasi hanya field yang diperlukan (action, due date, pic)
+  if (!editAction || !editDueDate || !editPic) {
     Swal.fire({
       icon: 'warning',
       title: 'WARNING',
-      text: 'ACTION, DUE DATE, PIC, AND STATUS ARE REQUIRED!',
+      text: 'ACTION, DUE DATE, DAN PIC WAJIB DIISI!',
       background: '#1a1a1a',
       color: 'white'
     });
     return;
   }
 
-  if (!canUpdate(selectedItem.status, editStatus)) {
-    let message = '';
-    if (selectedItem.status === 'Closed') {
-      message = 'CLOSED RECORDS CANNOT BE MODIFIED!';
-    } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
-      message = 'IN PROGRESS STATUS CAN ONLY BE CHANGED TO CLOSED!';
-    } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
-      message = 'ONLY MASTER USERS CAN CHANGE STATUS TO CLOSED!';
-    } else {
-      message = 'STATUS CHANGE NOT ALLOWED!';
+  // PERBAIKAN: Hapus validasi status wajib
+  // if (!editStatus) {
+  //   Swal.fire({
+  //     icon: 'warning',
+  //     title: 'WARNING',
+  //     text: 'STATUS WAJIB DIPILIH!',
+  //     background: '#1a1a1a',
+  //     color: 'white'
+  //   });
+  //   return;
+  // }
+
+  // Cek hanya kalau user MAU mengubah status
+  if (editStatus && editStatus !== selectedItem.status) {
+    // Kalau mau ubah status, baru cek validasi
+    if (!canUpdate(selectedItem.status, editStatus)) {
+      let message = '';
+      if (selectedItem.status === 'Closed') {
+        message = 'CLOSED RECORDS CANNOT BE MODIFIED!';
+      } else if (selectedItem.status === 'In Progress' && editStatus !== 'Closed') {
+        message = 'IN PROGRESS STATUS CAN ONLY BE CHANGED TO CLOSED!';
+      } else if (editStatus === 'Closed' && currentUser?.role !== 'master') {
+        message = 'ONLY MASTER USERS CAN CHANGE STATUS TO CLOSED!';
+      } else {
+        message = 'STATUS CHANGE NOT ALLOWED!';
+      }
+      
+      Swal.fire({
+        icon: 'error',
+        title: '❌ NOT ALLOWED',
+        text: message,
+        background: '#1a1a1a',
+        color: 'white'
+      });
+      return;
     }
-    
-    Swal.fire({
-      icon: 'error',
-      title: '❌ NOT ALLOWED',
-      text: message,
-      background: '#1a1a1a',
-      color: 'white'
-    });
-    return;
   }
 
   try {
-    // PASTIKAN KALAU IMAGES TIDAK DIUPDATE
+    // PERBAIKAN: Buat object update dinamis
+    const updateData: any = {
+      action: editAction,
+      due_date_max: editDueDate,
+      pic: editPic,
+      note_remark: editNote || null
+    };
+
+    // Hanya tambahkan status ke update KALAU DIUBAH
+    if (editStatus && editStatus !== selectedItem.status) {
+      updateData.status = editStatus;
+    }
+    // Kalau editStatus kosong atau sama, status TIDAK diupdate
+
     const { error } = await supabase
       .from('problems')
-      .update({
-        action: editAction,
-        due_date_max: editDueDate,
-        pic: editPic,
-        note_remark: editNote || null,
-        status: editStatus
-        // 👆 PERHATIKAN: images TIDAK ADA DI SINI!
-        // Jadi kolom images tidak akan berubah
-      })
+      .update(updateData)
       .eq('id', selectedItem.id);
 
     if (error) throw error;
@@ -590,7 +614,9 @@ async function saveUpdate() {
     await Swal.fire({
       icon: 'success',
       title: '✅ SUCCESS!',
-      text: 'RECORD UPDATED SUCCESSFULLY',
+      text: editStatus && editStatus !== selectedItem.status 
+        ? 'RECORD UPDATED WITH STATUS CHANGE' 
+        : 'RECORD UPDATED SUCCESSFULLY (STATUS UNCHANGED)',
       timer: 1500,
       showConfirmButton: false,
       background: '#1a1a1a',

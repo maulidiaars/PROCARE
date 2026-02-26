@@ -4,6 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './globals.css'
+import SessionTimeout from '@/components/SessionTimeout' // ← TAMBAHKAN INI
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         {children}
+        <SessionTimeout timeoutMinutes={5} /> {/* ← TAMBAHKAN INI */}
         
         {/* Bootstrap JS - di-load di sini */}
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
