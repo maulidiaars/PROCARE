@@ -51,13 +51,11 @@ type BNFItem = {
   status: string;
 };
 
-// CUSTOM BAR COMPONENT DENGAN LABEL ANGKA + ISSUED
 const CustomBarWithLabel = (props: any) => {
   const { fill, x, y, width, height, texture, data, type, index } = props;
   
   if (!width || !height || height < 0) return null;
   
-  // Ambil value sesuai type (open/progress/closed)
   const value = data && data[index] ? data[index][type] : 0;
   
   return (
@@ -68,7 +66,6 @@ const CustomBarWithLabel = (props: any) => {
         </pattern>
       </defs>
       
-      {/* Background color */}
       <rect
         x={x}
         y={y}
@@ -78,7 +75,6 @@ const CustomBarWithLabel = (props: any) => {
         stroke="none"
       />
       
-      {/* Texture pattern */}
       <rect
         x={x}
         y={y}
@@ -88,7 +84,6 @@ const CustomBarWithLabel = (props: any) => {
         stroke="none"
       />
       
-      {/* Label angka - muncul di tengah-tengah bar */}
       {value > 0 && (
         <text
           x={x + width / 2}
@@ -115,7 +110,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
 
-  // Stats
   const [stats, setStats] = useState({
     total: 0,
     open: 0,
@@ -123,7 +117,6 @@ export default function Dashboard() {
     closed: 0
   });
 
-  // Filter
   const [statusFilter, setStatusFilter] = useState('all');
   const [picFilter, setPicFilter] = useState('all');
   const [plantFilter, setPlantFilter] = useState('all');
@@ -132,7 +125,8 @@ export default function Dashboard() {
   const [plantOptions, setPlantOptions] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
 
-  // Edit Modal
+  const [userPics, setUserPics] = useState<string[]>([]);
+
   const [selectedItem, setSelectedItem] = useState<BNFItem | null>(null);
   const [editAction, setEditAction] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
@@ -141,34 +135,32 @@ export default function Dashboard() {
   const [editStatus, setEditStatus] = useState('');
   const modalRef = useRef<any>(null);
 
-  // Image Gallery Modal
   const [selectedImages, setSelectedImages] = useState<ImageItem[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const galleryModalRef = useRef<any>(null);
 
-  // Menu Modal
   const [showMenuModal, setShowMenuModal] = useState(false);
   const menuModalRef = useRef<any>(null);
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // DATA FOR CHART
   const [chartData, setChartData] = useState<any[]>([]);
   
-  // DATA FOR PIE CHART
   const [pieData, setPieData] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState('');
 
-  // Warna untuk charts
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
   const COLORS = {
     open: '#FFC107',
     progress: '#17A2B8',
     closed: '#28A745'
   };
 
-  // CHECK LOGIN
   useEffect(() => {
     const userData = localStorage.getItem('currentUser');
     if (!userData) {
@@ -189,7 +181,6 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [router]);
 
-  // SETUP MODALS
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const timer = setTimeout(() => {
@@ -215,7 +206,6 @@ export default function Dashboard() {
     }
   }, []);
 
-  // FILTER EFFECTS
   useEffect(() => {
     applyFilters();
   }, [bnfItems, statusFilter, picFilter, plantFilter, dueFilter, searchText]);
@@ -224,7 +214,6 @@ export default function Dashboard() {
     setCurrentPage(1);
   }, [statusFilter, picFilter, plantFilter, dueFilter, searchText]);
 
-  // LOGOUT
   const handleLogout = () => {
     Swal.fire({
       title: 'Confirm Logout?',
@@ -243,7 +232,6 @@ export default function Dashboard() {
     });
   };
 
-  // MONTHLY RESET
   async function checkAndResetMonthly() {
     try {
       const today = new Date();
@@ -330,7 +318,6 @@ export default function Dashboard() {
     }
   }
 
-  // FETCH DATA
   async function fetchData(silent = false) {
     if (!silent) setLoading(true);
 
@@ -341,6 +328,16 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('name')
+        .order('name');
+
+      if (!usersError && usersData) {
+        const userNames = usersData.map(u => u.name);
+        setUserPics(userNames);
+      }
 
       const dataWithStatus = (data || []).map(item => ({
         ...item,
@@ -363,7 +360,6 @@ export default function Dashboard() {
         closed
       });
 
-      // UPDATE CHART DATA - LINE CHART untuk performance trend
       const last7Days = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
@@ -395,7 +391,6 @@ export default function Dashboard() {
       }
       setChartData(last7Days);
 
-      // UPDATE PIE CHART DATA - BULAN INI
       const now = new Date();
       const currentMonthStr = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       setCurrentMonth(currentMonthStr);
@@ -416,8 +411,10 @@ export default function Dashboard() {
         { name: 'CLOSED', value: monthClosed, color: COLORS.closed }
       ].filter(item => item.value > 0));
 
-      const pics = [...new Set(dataWithStatus.map(p => p.pic).filter(p => p && p !== '-'))] as string[];
-      setPicOptions(pics);
+      const existingPics = [...new Set(dataWithStatus.map(p => p.pic).filter(p => p && p !== '-'))] as string[];
+      
+      const allPics = [...new Set([...userPics, ...existingPics])];
+      setPicOptions(allPics);
 
       const plants = [...new Set(dataWithStatus.map(p => p.plant).filter(p => p))] as string[];
       setPlantOptions(plants);
@@ -429,7 +426,6 @@ export default function Dashboard() {
     }
   }
 
-  // APPLY FILTERS
   function applyFilters() {
     let filtered = [...bnfItems];
 
@@ -480,13 +476,11 @@ export default function Dashboard() {
     setFilteredItems(filtered);
   }
 
-  // PAGINATION
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredItems.slice(startIndex, endIndex);
 
-  // DUE DATE CLASS
   function getDueDateClass(dueDate: string) {
     if (!dueDate) return '';
     
@@ -503,7 +497,6 @@ export default function Dashboard() {
     return '';
   }
 
-  // FORMAT DATE/TIME
   function formatDateOnly(dateStr: string) {
     if (!dateStr) return '-';
     try {
@@ -542,7 +535,6 @@ export default function Dashboard() {
     }
   }
 
-  // STATUS VALIDATION - ONLY MASTER CAN CLOSE
   function canUpdate(currentStatus: string, newStatus: string): boolean {
     if (currentStatus === 'Closed') return false;
     
@@ -572,7 +564,6 @@ export default function Dashboard() {
     return true;
   }
 
-  // OPEN GALLERY
   function openGallery(images: ImageItem[]) {
     setSelectedImages(images);
     setCurrentImageIndex(0);
@@ -581,14 +572,24 @@ export default function Dashboard() {
     }
   }
 
-  // OPEN MENU MODAL
   function openMenuModal() {
     if (menuModalRef.current) {
       menuModalRef.current.show();
     }
   }
 
-  // EDIT MODAL
+  function getNormalizedPicName(name: string | null): string {
+    if (!name || name === '-') return '';
+    
+    const matchedUser = userPics.find(userName => 
+      userName.toLowerCase() === name.toLowerCase() ||
+      userName.toLowerCase().includes(name.toLowerCase()) ||
+      name.toLowerCase().includes(userName.toLowerCase())
+    );
+    
+    return matchedUser || name;
+  }
+
   function openEditModal(item: BNFItem) {
     if (!canEdit(item)) {
       Swal.fire({
@@ -614,7 +615,9 @@ export default function Dashboard() {
       setEditDueDate('');
     }
     
-    setEditPic(item.pic || '');
+    const normalizedPic = getNormalizedPicName(item.pic);
+    setEditPic(normalizedPic || '');
+    
     setEditNote(item.note_remark || '');
     setEditStatus(item.status || 'Open');
     
@@ -623,7 +626,6 @@ export default function Dashboard() {
     }
   }
 
-  // ========== SAVE UPDATE DENGAN HIGHLIGHT & TOAST ==========
   async function saveUpdate() {
     if (!selectedItem) return;
     
@@ -805,7 +807,6 @@ export default function Dashboard() {
     }
   }
 
-  // DOWNLOAD EXCEL
   async function downloadExcel() {
     const result = await Swal.fire({
       title: '📊 DOWNLOAD EXCEL',
@@ -957,7 +958,6 @@ export default function Dashboard() {
     }
   }
 
-  // DOWNLOAD PDF
   async function downloadPDF() {
     const result = await Swal.fire({
       title: '📄 DOWNLOAD PDF',
@@ -1133,7 +1133,6 @@ export default function Dashboard() {
     }
   }
 
-  // NAVIGATE TO PAGE
   const navigateTo = (path: string) => {
     if (menuModalRef.current) {
       menuModalRef.current.hide();
@@ -1141,7 +1140,6 @@ export default function Dashboard() {
     router.push(path);
   };
 
-  // CUSTOM TOOLTIP UNTUK LINE CHART
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -1164,10 +1162,9 @@ export default function Dashboard() {
     return null;
   };
 
-  // CUSTOM LABEL UNTUK PIE - DIPOSISIN TENGAH TIAP SECTION
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }: any) => {
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5; // POSISI TENGAH-TENGAH
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
   
@@ -1187,7 +1184,54 @@ export default function Dashboard() {
     );
   };
 
-  // LOADING
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!tableContainerRef.current) return;
+    
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'SELECT' || 
+        target.tagName === 'TEXTAREA' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('select') ||
+        target.closest('textarea')) {
+      return;
+    }
+
+    setIsDragging(true);
+    setStartX(e.pageX - tableContainerRef.current.offsetLeft);
+    setScrollLeft(tableContainerRef.current.scrollLeft);
+    tableContainerRef.current.style.cursor = 'grabbing';
+    tableContainerRef.current.style.userSelect = 'none';
+  };
+
+  const handleMouseUp = () => {
+    if (!tableContainerRef.current || !isDragging) return;
+    
+    setIsDragging(false);
+    tableContainerRef.current.style.cursor = 'grab';
+    tableContainerRef.current.style.userSelect = 'auto';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !tableContainerRef.current) return;
+    
+    e.preventDefault();
+    
+    const x = e.pageX - tableContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    tableContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging && tableContainerRef.current) {
+      setIsDragging(false);
+      tableContainerRef.current.style.cursor = 'grab';
+      tableContainerRef.current.style.userSelect = 'auto';
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -1207,10 +1251,8 @@ export default function Dashboard() {
     );
   }
 
-  // RENDER
   return (
     <div style={{ background: '#000000', minHeight: '100vh' }}>
-      {/* STICKY HEADER */}
       <div style={{ 
         position: 'sticky',
         top: 0,
@@ -1221,7 +1263,6 @@ export default function Dashboard() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
       }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* Left side */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
               width: '40px',
@@ -1252,104 +1293,100 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right side - hanya logout */}
-          <div style={{ position: 'relative' }}>
-            <div 
-              className="dropdown"
-              style={{ cursor: 'pointer' }}
-            >
-              <div 
-                data-bs-toggle="dropdown"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '4px 8px 4px 4px',
-                  borderRadius: '40px',
-                  border: '1px solid #8b3a3a'
-                }}
-              >
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  background: '#8b3a3a',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  color: 'white'
-                }}>
-                  <i className={`fas ${currentUser.role === 'master' ? 'fa-crown' : 'fa-user'}`}></i>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ color: 'white', fontSize: '12px', fontWeight: 500 }}>{currentUser.name}</div>
-                </div>
-                <i className="fas fa-chevron-down" style={{ color: '#aaa', fontSize: '10px', marginRight: '4px' }}></i>
-              </div>
-
-              <ul className="dropdown-menu dropdown-menu-end" style={{ 
-                background: '#1a1a1a', 
-                border: '1px solid #8b3a3a',
-                borderRadius: '16px',
-                padding: '8px',
-                minWidth: '200px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                marginTop: '8px'
-              }}>
-                <li>
-                  <div
-                    onClick={handleLogout}
-                    style={{
-                      padding: '14px 20px',
-                      color: '#ff6b6b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      fontSize: '14px',
-                      fontWeight: 500
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#2a2a2a';
-                      e.currentTarget.style.color = '#ff8a8a';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#ff6b6b';
-                    }}
-                  >
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      background: 'rgba(255, 107, 107, 0.1)',
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <i className="fas fa-sign-out-alt"></i>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>Logout</div>
-                      <div style={{ fontSize: '11px', color: '#888' }}>Sign out from account</div>
-                    </div>
-                    <i className="fas fa-arrow-right" style={{ fontSize: '12px', opacity: 0.7 }}></i>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ position: 'relative' }}>
+              <div className="dropdown" style={{ cursor: 'pointer' }}>
+                <div 
+                  data-bs-toggle="dropdown"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '4px 8px 4px 4px',
+                    borderRadius: '40px',
+                    border: '1px solid #8b3a3a'
+                  }}
+                >
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    background: '#8b3a3a',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    color: 'white'
+                  }}>
+                    <i className={`fas ${currentUser.role === 'master' ? 'fa-crown' : 'fa-user'}`}></i>
                   </div>
-                </li>
-              </ul>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ color: 'white', fontSize: '12px', fontWeight: 500 }}>{currentUser.name}</div>
+                  </div>
+                  <i className="fas fa-chevron-down" style={{ color: '#aaa', fontSize: '10px', marginRight: '4px' }}></i>
+                </div>
+
+                <ul className="dropdown-menu dropdown-menu-end" style={{ 
+                  background: '#1a1a1a', 
+                  border: '1px solid #8b3a3a',
+                  borderRadius: '16px',
+                  padding: '8px',
+                  minWidth: '200px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                  marginTop: '8px'
+                }}>
+                  <li>
+                    <div
+                      onClick={handleLogout}
+                      style={{
+                        padding: '14px 20px',
+                        color: '#ff6b6b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        fontSize: '14px',
+                        fontWeight: 500
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#2a2a2a';
+                        e.currentTarget.style.color = '#ff8a8a';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = '#ff6b6b';
+                      }}
+                    >
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        background: 'rgba(255, 107, 107, 0.1)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <i className="fas fa-sign-out-alt"></i>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>Logout</div>
+                        <div style={{ fontSize: '11px', color: '#888' }}>Sign out from account</div>
+                      </div>
+                      <i className="fas fa-arrow-right" style={{ fontSize: '12px', opacity: 0.7 }}></i>
+                    </div>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
         
-        {/* CHART + STATS SECTION - VERSI LINE CHART UNTUK PERFORMANCE TREND */}
         <div style={{
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch',
@@ -1363,137 +1400,140 @@ export default function Dashboard() {
             minWidth: '1000px',
           }}>
             
-{/* LEFT: BAR CHART UNTUK PERFORMANCE TREND */}
-<div style={{
-  background: '#1a1a1a',
-  borderRadius: '16px',
-  padding: '20px',
-  border: '1px solid #333',
-  boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-}}>
-  <div style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-  }}>
-    <div>
-      <h4 style={{
-        color: 'white',
-        margin: '0 0 4px 0',
-        fontSize: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-        7-DAY PERFORMANCE TREND
-      </h4>
-      <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
-        <i className="far fa-calendar-alt me-1"></i>
-        {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
-      </p>
-    </div>
-    
-  {/* Legend with values - HAPUS ANGKA TOTAL */}
-  <div style={{ display: 'flex', gap: '20px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ 
-        width: '12px', 
-        height: '12px', 
-        background: 'repeating-linear-gradient(45deg, #FFC107, #FFC107 4px, #e6a800 4px, #e6a800 8px)',
-        borderRadius: '3px',
-        boxShadow: '0 0 8px #FFC107'
-      }}></div>
-      <span style={{ color: '#ccc', fontSize: '11px' }}>OPEN</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ 
-        width: '12px', 
-        height: '12px', 
-        background: 'repeating-linear-gradient(45deg, #17A2B8, #17A2B8 4px, #138496 4px, #138496 8px)',
-        borderRadius: '3px',
-        boxShadow: '0 0 8px #17A2B8'
-      }}></div>
-      <span style={{ color: '#ccc', fontSize: '11px' }}>IN PROGRESS</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ 
-        width: '12px', 
-        height: '12px', 
-        background: 'repeating-linear-gradient(45deg, #28A745, #28A745 4px, #1e7e34 4px, #1e7e34 8px)',
-        borderRadius: '3px',
-        boxShadow: '0 0 8px #28A745'
-      }}></div>
-      <span style={{ color: '#ccc', fontSize: '11px' }}>CLOSED</span>
-    </div>
-  </div>
-  </div>
+            <div style={{
+              background: '#1a1a1a',
+              borderRadius: '16px',
+              padding: '20px',
+              border: '1px solid #333',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <div>
+                  <h4 style={{
+                    color: 'white',
+                    margin: '0 0 4px 0',
+                    fontSize: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
+                    7-DAY PERFORMANCE TREND
+                  </h4>
+                  <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
+                    <i className="far fa-calendar-alt me-1"></i>
+                    {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+                  </p>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      background: 'repeating-linear-gradient(45deg, #FFC107, #FFC107 4px, #e6a800 4px, #e6a800 8px)',
+                      borderRadius: '3px',
+                      boxShadow: '0 0 8px #FFC107'
+                    }}></div>
+                    <span style={{ color: '#ccc', fontSize: '11px' }}>OPEN</span>
+                    <span style={{ color: '#ffc107', fontSize: '12px', fontWeight: 600 }}>
+                      {stats.open}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      background: 'repeating-linear-gradient(45deg, #17A2B8, #17A2B8 4px, #138496 4px, #138496 8px)',
+                      borderRadius: '3px',
+                      boxShadow: '0 0 8px #17A2B8'
+                    }}></div>
+                    <span style={{ color: '#ccc', fontSize: '11px' }}>IN PROGRESS</span>
+                    <span style={{ color: '#17a2b8', fontSize: '12px', fontWeight: 600 }}>
+                      {stats.progress}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      background: 'repeating-linear-gradient(45deg, #28A745, #28A745 4px, #1e7e34 4px, #1e7e34 8px)',
+                      borderRadius: '3px',
+                      boxShadow: '0 0 8px #28A745'
+                    }}></div>
+                    <span style={{ color: '#ccc', fontSize: '11px' }}>CLOSED</span>
+                    <span style={{ color: '#28a745', fontSize: '12px', fontWeight: 600 }}>
+                      {stats.closed}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-  <div style={{ 
-    width: '100%', 
-    height: '350px',
-    minWidth: '600px',
-    position: 'relative'
-  }}>
-    <ResponsiveContainer>
-      <BarChart 
-        data={chartData} 
-        margin={{ top: 30, right: 30, left: 0, bottom: 20 }}
-        barGap={0}
-        barCategoryGap={10}
-      >
-        <CartesianGrid 
-          strokeDasharray="3 3" 
-          stroke="#333" 
-          vertical={false}
-        />
-        
-        <XAxis 
-          dataKey="date" 
-          stroke="#aaa"
-          tick={{ fill: '#ccc', fontSize: 11, fontWeight: 500 }}
-          axisLine={{ stroke: '#404040' }}
-          tickLine={{ stroke: '#404040' }}
-        />
-        
-        <YAxis 
-          stroke="#aaa"
-          tick={{ fill: '#ccc', fontSize: 11 }}
-          axisLine={{ stroke: '#404040' }}
-          tickLine={{ stroke: '#404040' }}
-          allowDecimals={false}
-        />
-        
-        {/* OPEN */}
-        <Bar 
-          dataKey="open" 
-          stackId="a"
-          fill="#FFC107"
-          shape={<CustomBarWithLabel texture="diagonal" color="#FFC107" data={chartData} type="open" />}
-        />
-        
-        {/* IN PROGRESS */}
-        <Bar 
-          dataKey="progress" 
-          stackId="a"
-          fill="#17A2B8"
-          shape={<CustomBarWithLabel texture="diagonal" color="#17A2B8" data={chartData} type="progress" />}
-        />
-        
-        {/* CLOSED */}
-        <Bar 
-          dataKey="closed" 
-          stackId="a"
-          fill="#28A745"
-          shape={<CustomBarWithLabel texture="diagonal" color="#28A745" data={chartData} type="closed" />}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  </div>
-</div>
+              <div style={{ 
+                width: '100%', 
+                height: '350px',
+                minWidth: '600px',
+                position: 'relative'
+              }}>
+                <ResponsiveContainer>
+                  <BarChart 
+                    data={chartData} 
+                    margin={{ top: 30, right: 30, left: 0, bottom: 20 }}
+                    barGap={0}
+                    barCategoryGap={10}
+                  >
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="#333" 
+                      vertical={false}
+                    />
+                    
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#aaa"
+                      tick={{ fill: '#ccc', fontSize: 11, fontWeight: 500 }}
+                      axisLine={{ stroke: '#404040' }}
+                      tickLine={{ stroke: '#404040' }}
+                    />
+                    
+                    <YAxis 
+                      stroke="#aaa"
+                      tick={{ fill: '#ccc', fontSize: 11 }}
+                      axisLine={{ stroke: '#404040' }}
+                      tickLine={{ stroke: '#404040' }}
+                      allowDecimals={false}
+                    />
+                    
+                    <Bar 
+                      dataKey="open" 
+                      stackId="a"
+                      fill="#FFC107"
+                      shape={<CustomBarWithLabel texture="diagonal" color="#FFC107" data={chartData} type="open" />}
+                    />
+                    
+                    <Bar 
+                      dataKey="progress" 
+                      stackId="a"
+                      fill="#17A2B8"
+                      shape={<CustomBarWithLabel texture="diagonal" color="#17A2B8" data={chartData} type="progress" />}
+                    />
+                    
+                    <Bar 
+                      dataKey="closed" 
+                      stackId="a"
+                      fill="#28A745"
+                      shape={<CustomBarWithLabel texture="diagonal" color="#28A745" data={chartData} type="closed" />}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-            {/* RIGHT: VERTICAL STATS + COMPLETION RATE + PIE CHART */}
             <div style={{
               background: '#1a1a1a',
               borderRadius: '16px',
@@ -1503,7 +1543,6 @@ export default function Dashboard() {
               flexDirection: 'column',
               gap: '16px'
             }}>
-              {/* Header */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1540,7 +1579,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* COMPLETION RATE */}
               <div style={{
                 background: '#222',
                 borderRadius: '12px',
@@ -1577,7 +1615,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* PIE CHART SECTION - DENGAN LABEL DI TENGAH */}
               <div style={{
                 background: '#222',
                 borderRadius: '12px',
@@ -1658,7 +1695,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* FILTER SECTION */}
         <div style={{ background: '#1a1a1a', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #333' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
             <div>
@@ -1670,13 +1706,22 @@ export default function Dashboard() {
                 <option value="Closed">CLOSED</option>
               </select>
             </div>
+            
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>PIC</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={picFilter} onChange={(e) => setPicFilter(e.target.value)}>
                 <option value="all">ALL PIC</option>
-                {picOptions.map(pic => <option key={pic} value={pic}>{pic}</option>)}
+                {userPics.map(pic => (
+                  <option key={pic} value={pic}>{pic}</option>
+                ))}
+                {picOptions.filter(pic => !userPics.includes(pic)).map(pic => (
+                  <option key={pic} value={pic} style={{ color: '#ffc107' }}>
+                    {pic} (legacy)
+                  </option>
+                ))}
               </select>
             </div>
+            
             <div>
               <label style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px', display: 'block' }}>PLANT</label>
               <select className="form-select" style={{ background: '#2a2a2a', border: '1px solid #404040', color: 'white', padding: '10px', borderRadius: '8px', width: '100%', fontSize: '14px' }} value={plantFilter} onChange={(e) => setPlantFilter(e.target.value)}>
@@ -1700,7 +1745,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* TABLE SECTION */}
         <div style={{ 
           background: '#1a1a1a',
           borderRadius: '12px',
@@ -1708,7 +1752,6 @@ export default function Dashboard() {
           padding: '20px'
         }}>
           
-          {/* Table Header */}
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1763,13 +1806,23 @@ export default function Dashboard() {
             </div>
           </div>
           
-          {/* Table */}
-          <div style={{ 
-            overflowX: 'auto',
-            overflowY: 'visible',
-            border: '1px solid #333',
-            borderRadius: '8px'
-          }}>
+          <div 
+            ref={tableContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{ 
+              overflowX: 'auto',
+              overflowY: 'visible',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: isDragging ? 'none' : 'auto',
+              WebkitUserSelect: isDragging ? 'none' : 'auto',
+              position: 'relative'
+            }}
+          >
             <table style={{ 
               width: '100%', 
               borderCollapse: 'collapse',
@@ -1842,6 +1895,8 @@ export default function Dashboard() {
                       plantBg = '#8b3a3a20';
                     }
                     
+                    const isPicValid = item.pic && userPics.includes(item.pic);
+                    
                     return (
                       <tr 
                         key={item.id} 
@@ -1869,7 +1924,6 @@ export default function Dashboard() {
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.local_import}</td>
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.supplier_name || '-'}</td>
                         
-                        {/* DESCRIPTION - DENGAN white-space: pre-line UNTUK BULLET POINT */}
                         <td style={{ 
                           padding: '12px 4px', 
                           textAlign: 'left', 
@@ -1893,7 +1947,6 @@ export default function Dashboard() {
                           </div>
                         </td>
                         
-                        {/* ACTION - DENGAN white-space: pre-line UNTUK BULLET POINT */}
                         <td style={{ 
                           padding: '12px 4px', 
                           textAlign: 'left', 
@@ -1915,7 +1968,19 @@ export default function Dashboard() {
                           {formatDate(item.due_date_max)}
                         </td>
                         
-                        <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.pic || '-'}</td>
+                        <td style={{ 
+                          padding: '12px 4px', 
+                          textAlign: 'center', 
+                          border: '1px solid #404040',
+                          color: isPicValid ? 'white' : '#ffc107',
+                          fontWeight: isPicValid ? 400 : 600
+                        }}>
+                          {item.pic || '-'}
+                          {!isPicValid && item.pic && (
+                            <i className="fas fa-exclamation-triangle ms-1" style={{ color: '#ffc107', fontSize: '10px' }} title="Legacy PIC"></i>
+                          )}
+                        </td>
+                        
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>{item.note_remark || '-'}</td>
                         
                         <td style={{ padding: '12px 4px', textAlign: 'center', border: '1px solid #404040' }}>
@@ -2008,9 +2073,29 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
+            
+            {!isDragging && (
+              <div style={{
+                position: 'absolute',
+                bottom: '10px',
+                right: '20px',
+                background: 'rgba(139, 58, 58, 0.9)',
+                color: 'white',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                pointerEvents: 'none',
+                opacity: 0.7,
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                zIndex: 100
+              }}>
+                <i className="fas fa-arrows-alt-h me-2"></i>
+                Drag to scroll
+              </div>
+            )}
           </div>
           
-          {/* Pagination */}
           {filteredItems.length > 0 && (
             <div style={{ 
               display: 'flex', 
@@ -2073,7 +2158,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FLOATING MENU BUTTON */}
       <button
         onClick={openMenuModal}
         style={{
@@ -2107,7 +2191,6 @@ export default function Dashboard() {
         <i className="fas fa-bars"></i>
       </button>
 
-      {/* MENU MODAL */}
       <div className="modal fade" id="menuModal" tabIndex={-1} data-bs-backdrop="static">
         <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '350px' }}>
           <div className="modal-content" style={{ 
@@ -2312,7 +2395,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* EDIT MODAL */}
       <div className="modal fade" id="updateModal" tabIndex={-1} data-bs-backdrop="static">
         <div className="modal-dialog modal-lg modal-dialog-centered">
           <div className="modal-content" style={{ 
@@ -2356,7 +2438,6 @@ export default function Dashboard() {
                 gap: '20px'
               }}>
                 
-                {/* LEFT COLUMN */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ color: '#ccc', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2408,9 +2489,8 @@ export default function Dashboard() {
                       <i className="fas fa-user" style={{ color: '#c44a4a', fontSize: '12px' }}></i>
                       PIC <span style={{ color: '#dc3545' }}>*</span>
                     </label>
-                    <input 
-                      type="text" 
-                      className="form-control"
+                    <select
+                      className="form-select"
                       value={editPic}
                       onChange={(e) => setEditPic(e.target.value)}
                       style={{ 
@@ -2422,12 +2502,24 @@ export default function Dashboard() {
                         fontSize: '13px',
                         width: '100%'
                       }}
-                      placeholder="PERSON IN CHARGE"
-                    />
+                    >
+                      <option value="">SELECT PIC</option>
+                      {userPics.map(pic => (
+                        <option key={pic} value={pic}>{pic}</option>
+                      ))}
+                      {editPic && !userPics.includes(editPic) && (
+                        <option value={editPic} style={{ color: '#ffc107' }}>
+                          {editPic} (existing)
+                        </option>
+                      )}
+                    </select>
+                    <p style={{ color: '#aaa', fontSize: '11px', marginTop: '4px' }}>
+                      <i className="fas fa-info-circle me-1"></i>
+                      Pilih PIC dari daftar staff
+                    </p>
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ color: '#ccc', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2570,7 +2662,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* GALLERY MODAL */}
       <div className="modal fade" id="galleryModal" tabIndex={-1}>
         <div className="modal-dialog modal-lg modal-dialog-centered">
           <div className="modal-content" style={{ 
@@ -2592,7 +2683,6 @@ export default function Dashboard() {
             <div className="modal-body" style={{ padding: '24px' }}>
               {selectedImages.length > 0 ? (
                 <div>
-                  {/* Main Image with Navigation */}
                   <div 
                     style={{ 
                       position: 'relative', 
@@ -2620,7 +2710,6 @@ export default function Dashboard() {
                       }
                     }}
                   >
-                    {/* Previous Button */}
                     {selectedImages.length > 1 && (
                       <button
                         onClick={() => setCurrentImageIndex(prev => 
@@ -2658,7 +2747,6 @@ export default function Dashboard() {
                       </button>
                     )}
 
-                    {/* Image Container */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2694,7 +2782,6 @@ export default function Dashboard() {
                       />
                     </div>
 
-                    {/* Next Button */}
                     {selectedImages.length > 1 && (
                       <button
                         onClick={() => setCurrentImageIndex(prev => 
@@ -2733,7 +2820,6 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  {/* CAPTION */}
                   {selectedImages[currentImageIndex]?.caption && (
                     <div style={{
                       marginTop: '16px',
@@ -2752,7 +2838,6 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* Thumbnails */}
                   {selectedImages.length > 1 && (
                     <div style={{
                       display: 'flex',

@@ -17,11 +17,11 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // State untuk multiple images
   const [images, setImages] = useState<ImageItem[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // State untuk real-time date & time
+  const [picOptions, setPicOptions] = useState<string[]>([]);
+
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
 
@@ -34,7 +34,25 @@ export default function Home() {
     setCurrentUser(JSON.parse(userData));
   }, [router]);
 
-  // Update real-time date & time setiap detik
+  useEffect(() => {
+    async function fetchPics() {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('name')
+          .order('name');
+
+        if (!error && data) {
+          setPicOptions(data.map(u => u.name));
+        }
+      } catch (error) {
+        console.error('Error fetch pics:', error);
+      }
+    }
+
+    fetchPics();
+  }, []);
+
   useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
@@ -66,7 +84,6 @@ export default function Home() {
     const files = e.target.files;
     if (!files) return;
 
-    // Cek total gambar (max 10)
     if (images.length + files.length > 10) {
       Swal.fire({
         icon: 'error',
@@ -79,7 +96,6 @@ export default function Home() {
     }
 
     Array.from(files).forEach(file => {
-      // Cek size (max 5MB per file)
       if (file.size > 5 * 1024 * 1024) {
         Swal.fire({
           icon: 'error',
@@ -91,7 +107,6 @@ export default function Home() {
         return;
       }
 
-      // Cek tipe file
       if (!file.type.startsWith('image/')) {
         Swal.fire({
           icon: 'error',
@@ -103,7 +118,6 @@ export default function Home() {
         return;
       }
 
-      // Buat preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImages(prev => [...prev, {
@@ -151,7 +165,6 @@ export default function Home() {
     try {
       let imageUrls: { url: string; caption: string }[] = [];
       
-      // Upload multiple images
       if (images.length > 0) {
         setUploadingImages(true);
         
@@ -201,7 +214,6 @@ export default function Home() {
       const pic = formData.get('pic') as string;
       const noteRemark = formData.get('noteRemark') as string;
 
-      // Validasi
       if (!densoPn) throw new Error('DENSO PN wajib diisi');
       if (!plant) throw new Error('Plant wajib diisi');
       if (!localImport) throw new Error('Local/Import wajib diisi');
@@ -220,20 +232,15 @@ export default function Home() {
         due_date_max: dueDateMax,
         pic: pic || null,
         note_remark: noteRemark || null,
-        images: imageUrls, // Simpan array of objects
+        images: imageUrls,
         status: 'Open'
       };
-
-      console.log('Data yang akan dikirim:', data);
 
       const { error } = await supabase
         .from('problems')
         .insert([data]);
 
-      if (error) {
-        console.error('Supabase error detail:', error);
-        throw new Error(error.message);
-      }
+      if (error) throw error;
 
       const result = await Swal.fire({
         icon: 'success',
@@ -251,11 +258,9 @@ export default function Home() {
       if (result.isConfirmed) {
         router.push('/dashboard');
       } else {
-        // Reset form
         (e.target as HTMLFormElement).reset();
         setImages([]);
         
-        // Set tanggal & jam ke real-time
         const dateInput = document.querySelector('input[name="issuedDate"]') as HTMLInputElement;
         const timeInput = document.querySelector('input[name="issuedTime"]') as HTMLInputElement;
         
@@ -271,7 +276,7 @@ export default function Home() {
       }
 
     } catch (error: any) {
-      console.error('Error lengkap:', error);
+      console.error('Error:', error);
       
       Swal.fire({
         icon: 'error',
@@ -287,7 +292,6 @@ export default function Home() {
     }
   }
 
-  // OPEN MENU MODAL
   const openMenuModal = () => {
     const menuModal = document.getElementById('menuModal');
     if (menuModal && (window as any).bootstrap) {
@@ -296,7 +300,6 @@ export default function Home() {
     }
   };
 
-  // NAVIGATE TO PAGE
   const navigateTo = (path: string) => {
     const menuModal = document.getElementById('menuModal');
     if (menuModal && (window as any).bootstrap) {
@@ -325,7 +328,6 @@ export default function Home() {
         margin: '0 auto'
       }}>
         
-        {/* STICKY HEADER */}
         <div style={{ 
           position: 'sticky',
           top: 0,
@@ -338,7 +340,6 @@ export default function Home() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {/* Left side */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
                 width: '40px',
@@ -368,7 +369,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right side - hanya logout */}
             <div style={{ position: 'relative' }}>
               <div 
                 className="dropdown"
@@ -405,7 +405,6 @@ export default function Home() {
                   <i className="fas fa-chevron-down" style={{ color: '#aaa', fontSize: '10px', marginRight: '4px' }}></i>
                 </div>
 
-                {/* DROPDOWN CANTIK - HANYA LOGOUT */}
                 <ul className="dropdown-menu dropdown-menu-end" style={{ 
                   background: '#1a1a1a', 
                   border: '1px solid #8b3a3a',
@@ -463,7 +462,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* FORM CARD */}
         <div style={{ 
           background: '#121212',
           border: '1px solid #2a2a2a',
@@ -499,7 +497,6 @@ export default function Home() {
               gap: '20px'
             }}>
               
-              {/* DENSO PN */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   DENSO PN <span style={{ color: '#dc3545' }}>*</span>
@@ -522,7 +519,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* PLANT */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   PLANT <span style={{ color: '#dc3545' }}>*</span>
@@ -548,7 +544,6 @@ export default function Home() {
                 </select>
               </div>
 
-              {/* PART NAME */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   PART NAME
@@ -570,7 +565,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* LOCAL / IMPORT */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   LOCAL / IMPORT <span style={{ color: '#dc3545' }}>*</span>
@@ -595,7 +589,6 @@ export default function Home() {
                 </select>
               </div>
 
-              {/* SUPPLIER NAME */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   SUPPLIER NAME
@@ -617,7 +610,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* DESCRIPTION */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   DESCRIPTION <span style={{ color: '#dc3545' }}>*</span>
@@ -641,7 +633,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* ISSUED DATE */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   ISSUED DATE <span style={{ color: '#dc3545' }}>*</span>
@@ -665,7 +656,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* ISSUED TIME */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   ISSUED TIME <span style={{ color: '#dc3545' }}>*</span>
@@ -689,7 +679,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* ACTION */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   ACTION
@@ -711,7 +700,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* DUE DATE MAX */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   DUE DATE MAX <span style={{ color: '#dc3545' }}>*</span>
@@ -734,13 +722,11 @@ export default function Home() {
                 />
               </div>
 
-              {/* PIC */}
               <div>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  PIC
+                  PIC <span style={{ color: '#8b3a3a', fontSize: '11px' }}>(Pilih dari daftar staff)</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   name="pic"
                   style={{ 
                     width: '100%',
@@ -752,11 +738,14 @@ export default function Home() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
-                  placeholder="Person in charge"
-                />
+                >
+                  <option value="">SELECT PIC</option>
+                  {picOptions.map(pic => (
+                    <option key={pic} value={pic}>{pic}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* IMAGES - Multiple Upload */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   IMAGES
@@ -783,7 +772,6 @@ export default function Home() {
                   }}
                 />
                 
-                {/* Image Previews with Captions */}
                 {images.length > 0 && (
                   <div style={{
                     display: 'grid',
@@ -847,7 +835,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* NOTE / REMARK */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
                   NOTE / REMARK
@@ -871,7 +858,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* SUBMIT BUTTON */}
             <div style={{ marginTop: '30px' }}>
               <button
                 type="submit"
@@ -905,7 +891,6 @@ export default function Home() {
           </form>
         </div>
 
-        {/* FOOTER */}
         <p style={{ 
           textAlign: 'center', 
           color: '#666', 
@@ -917,7 +902,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* FLOATING MENU BUTTON - POJOK KANAN BAWAH */}
       <button
         onClick={openMenuModal}
         style={{
@@ -951,7 +935,6 @@ export default function Home() {
         <i className="fas fa-bars"></i>
       </button>
 
-      {/* MENU MODAL */}
       <div className="modal fade" id="menuModal" tabIndex={-1} data-bs-backdrop="static">
         <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '350px' }}>
           <div className="modal-content" style={{ 
