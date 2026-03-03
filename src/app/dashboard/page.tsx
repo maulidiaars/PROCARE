@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -95,7 +96,7 @@ const CustomBarWithLabel = (props: any) => {
           fontWeight={700}
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
         >
-          {value} issued
+          {value}
         </text>
       )}
     </g>
@@ -145,7 +146,8 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [fyChartData, setFyChartData] = useState<any[]>([]);
+  const [fyRange, setFyRange] = useState({ start: '', end: '' });
   
   const [pieData, setPieData] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState('');
@@ -318,6 +320,34 @@ export default function Dashboard() {
     }
   }
 
+  function getFYRange() {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11 (April = 3)
+    
+    let fyStartYear, fyEndYear;
+    
+    // FY25 dimulai April 2025 - Maret 2026
+    if (currentMonth >= 3) { // April - Desember
+      fyStartYear = currentYear;
+      fyEndYear = currentYear + 1;
+    } else { // Januari - Maret
+      fyStartYear = currentYear - 1;
+      fyEndYear = currentYear;
+    }
+    
+    const fyStart = new Date(fyStartYear, 3, 1); // 1 April
+    const fyEnd = new Date(fyEndYear, 2, 31); // 31 Maret
+    
+    return {
+      start: fyStart,
+      end: fyEnd,
+      startStr: `APR ${fyStartYear}`,
+      endStr: `MAR ${fyEndYear}`,
+      yearStr: `FY ${fyStartYear.toString().slice(2)}/${fyEndYear.toString().slice(2)}`
+    };
+  }
+
   async function fetchData(silent = false) {
     if (!silent) setLoading(true);
 
@@ -360,36 +390,61 @@ export default function Dashboard() {
         closed
       });
 
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        
-        const dayStr = date.toLocaleDateString('en-US', { 
-          weekday: 'short',
-          day: 'numeric'
-        });
-        
-        let openCount = 0, progressCount = 0, closedCount = 0;
+      // FY25 HISTORICAL DATA (April 2025 - March 2026)
+      const fyInfo = getFYRange();
+      setFyRange({
+        start: fyInfo.startStr,
+        end: fyInfo.endStr
+      });
 
-        dataWithStatus.forEach(item => {
-          const itemDate = new Date(item.created_at);
-          if (itemDate.toDateString() === date.toDateString()) {
-            if (item.status === 'Open') openCount++;
-            else if (item.status === 'In Progress') progressCount++;
-            else if (item.status === 'Closed') closedCount++;
+      const monthlyData: { [key: string]: { month: string; open: number; progress: number; closed: number; total: number } } = {};
+      
+      // Inisialisasi 12 bulan dari April sampai Maret
+      const monthNames = ['APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'JAN', 'FEB', 'MAR'];
+      monthNames.forEach(month => {
+        monthlyData[month] = {
+          month,
+          open: 0,
+          progress: 0,
+          closed: 0,
+          total: 0
+        };
+      });
+
+      dataWithStatus.forEach(item => {
+        const itemDate = new Date(item.created_at);
+        
+        // Filter hanya data dalam FY range
+        if (itemDate >= fyInfo.start && itemDate <= fyInfo.end) {
+          const month = itemDate.getMonth(); // 0-11
+          let monthKey = '';
+          
+          // Mapping month number to month label (APR=3 -> APR, MAY=4 -> MAY, etc)
+          if (month === 3) monthKey = 'APR';
+          else if (month === 4) monthKey = 'MAY';
+          else if (month === 5) monthKey = 'JUN';
+          else if (month === 6) monthKey = 'JUL';
+          else if (month === 7) monthKey = 'AUG';
+          else if (month === 8) monthKey = 'SEP';
+          else if (month === 9) monthKey = 'OCT';
+          else if (month === 10) monthKey = 'NOV';
+          else if (month === 11) monthKey = 'DEC';
+          else if (month === 0) monthKey = 'JAN';
+          else if (month === 1) monthKey = 'FEB';
+          else if (month === 2) monthKey = 'MAR';
+          
+          if (monthlyData[monthKey]) {
+            if (item.status === 'Open') monthlyData[monthKey].open++;
+            else if (item.status === 'In Progress') monthlyData[monthKey].progress++;
+            else if (item.status === 'Closed') monthlyData[monthKey].closed++;
+            monthlyData[monthKey].total++;
           }
-        });
+        }
+      });
 
-        last7Days.push({
-          date: dayStr,
-          open: openCount,
-          progress: progressCount,
-          closed: closedCount,
-          total: openCount + progressCount + closedCount
-        });
-      }
-      setChartData(last7Days);
+      // Convert ke array dengan urutan April - Maret
+      const fyChartArray = monthNames.map(month => monthlyData[month]);
+      setFyChartData(fyChartArray);
 
       const now = new Date();
       const currentMonthStr = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -1423,11 +1478,11 @@ export default function Dashboard() {
                     gap: '8px'
                   }}>
                     <i className="fas fa-chart-bar" style={{ color: '#8b3a3a' }}></i>
-                    7-DAY PERFORMANCE TREND
+                    FY 25 HISTORICAL BNF
                   </h4>
                   <p style={{ color: '#aaa', fontSize: '11px', margin: 0 }}>
                     <i className="far fa-calendar-alt me-1"></i>
-                    {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+                    {fyRange.start} - {fyRange.end}
                   </p>
                 </div>
                 
@@ -1482,7 +1537,7 @@ export default function Dashboard() {
               }}>
                 <ResponsiveContainer>
                   <BarChart 
-                    data={chartData} 
+                    data={fyChartData} 
                     margin={{ top: 30, right: 30, left: 0, bottom: 20 }}
                     barGap={0}
                     barCategoryGap={10}
@@ -1494,7 +1549,7 @@ export default function Dashboard() {
                     />
                     
                     <XAxis 
-                      dataKey="date" 
+                      dataKey="month" 
                       stroke="#aaa"
                       tick={{ fill: '#ccc', fontSize: 11, fontWeight: 500 }}
                       axisLine={{ stroke: '#404040' }}
@@ -1513,21 +1568,21 @@ export default function Dashboard() {
                       dataKey="open" 
                       stackId="a"
                       fill="#FFC107"
-                      shape={<CustomBarWithLabel texture="diagonal" color="#FFC107" data={chartData} type="open" />}
+                      shape={<CustomBarWithLabel texture="diagonal" color="#FFC107" data={fyChartData} type="open" />}
                     />
                     
                     <Bar 
                       dataKey="progress" 
                       stackId="a"
                       fill="#17A2B8"
-                      shape={<CustomBarWithLabel texture="diagonal" color="#17A2B8" data={chartData} type="progress" />}
+                      shape={<CustomBarWithLabel texture="diagonal" color="#17A2B8" data={fyChartData} type="progress" />}
                     />
                     
                     <Bar 
                       dataKey="closed" 
                       stackId="a"
                       fill="#28A745"
-                      shape={<CustomBarWithLabel texture="diagonal" color="#28A745" data={chartData} type="closed" />}
+                      shape={<CustomBarWithLabel texture="diagonal" color="#28A745" data={fyChartData} type="closed" />}
                     />
                   </BarChart>
                 </ResponsiveContainer>
